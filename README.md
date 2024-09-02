@@ -64,3 +64,5 @@ $ forge --help
 $ anvil --help
 $ cast --help
 ```
+
+forge install smartcontractkit/chainlink --no-commit
