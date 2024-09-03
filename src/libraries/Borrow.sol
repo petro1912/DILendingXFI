@@ -66,12 +66,12 @@ library Borrow {
         DebtPosition storage position = state.positionData.debtPositions[msg.sender];
         _validateBorrow(state, position, _amount);
 
-        // update borrow data for user & pool
-        state.reserveData.totalBorrows += _amount;
-        position.borrowAmount += _amount;
-        
-        // update debt for the user's position
         uint256 debt = state.getDebtAmount(_amount);
+        // update borrow data for user & pool
+        // update debt for the user's position
+        state.reserveData.totalBorrows += _amount;
+        position.totalBorrow += _amount;
+        position.borrowAmount += _amount;
         position.debtAmount += debt;
         state.positionData.totalDebt += debt;
 
@@ -93,9 +93,11 @@ library Borrow {
         DebtPosition storage position = state.positionData.debtPositions[msg.sender];
         uint256 repaid = position.borrowAmount.mulDiv(debt, position.debtAmount); 
         
+        state.reserveData.totalBorrows -= repaid; 
         state.reserveData.totalRepaid += repaid;
         state.positionData.totalDebt -= debt;
         
+        position.borrowAmount -= repaid;
         position.repaidAmount += repaid;
         position.debtAmount -= debt;
         
@@ -114,9 +116,11 @@ library Borrow {
 
         DebtPosition storage position = state.positionData.debtPositions[msg.sender];
         // update borrow and debt info
+        state.reserveData.totalBorrows -= position.borrowAmount;
         state.reserveData.totalRepaid += repaid;
         state.positionData.totalDebt -= position.debtAmount;
 
+        position.borrowAmount = 0;
         position.repaidAmount += repaid;
         position.debtAmount = 0;
 
@@ -132,7 +136,7 @@ library Borrow {
         repaid = _calculateRepaidAmount(state);
     }
 
-    function _calculateRepaidAmount(state storage state) internal returns (uint256 repaid) {
+    function _calculateRepaidAmount(State storage state) internal returns (uint256 repaid) {
         DebtPosition storage position = state.positionData.debtPositions[msg.sender];
         repaid = state.getRepaidAmount(position.debtAmount);
     }

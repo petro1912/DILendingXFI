@@ -11,20 +11,23 @@ struct DebtPosition {
     uint256 borrowAmount;
     uint256 repaidAmount;
     uint256 debtAmount; 
+    uint256 totalBorrow;
 }
 
 struct CreditPosition {
     uint256 depositAmount;
     uint256 withdrawAmount;
     uint256 creditAmount;
+    uint256 totalDeposit;
 }
 
 struct ReserveData {
-    uint256 totalDeposits;
-    uint256 totalWithdrawals;
+    uint256 totalDeposits; // Total Deposits 
+    uint256 totalWithdrawals; // Total Accumulated withdrawals
     uint256 totalCollaterals;
-    uint256 totalBorrows;
-    uint256 totalRepaid;
+    uint256 totalBorrows; // Total Accumulated borrows
+    uint256 totalRepaid; // Total Accumulated repaid
+    uint256 totalAccruedDeposits; 
 }
 
 struct RateData {

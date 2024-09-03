@@ -27,7 +27,7 @@ library Reward {
         (, uint256 creditIndex) = state.calcUpdatedInterestRates(state);
         CreditPosition storage position = state.positionData.creditPositions[user];
 
-        uint256 totalDeposit = position.depositAmount;
+        uint256 totalDeposit = position.totalDeposit;
         uint256 totalWithdraw = position.withdrawAmount;
         uint256 remainingCash = position.creditAmount.mulWad(creditIndex);
 

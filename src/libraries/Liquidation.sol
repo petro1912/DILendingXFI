@@ -13,6 +13,8 @@ library Liquidation  {
     using TransferLib for State;
     using AccountingLib for State;    
     using PriceLib for State;
+
+    uint256 constant WAD = 1e18;
     
     function liquidate(State storage state, address _borrower, uint256 _amount) external {
         // update interest rate model
@@ -23,9 +25,9 @@ library Liquidation  {
         //update reserve and borrower's debt
         DebtPosition storage position = state.positionData.debtPositions[_borrower];
         uint256 debt = state.getDebtAmount(_amount);
-        // uint256 repaid = position.borrowAmount.mulDiv(debt, position.debtAmount); 
-        // state.reserveData.totalBorrows -= repaid;
-        // position.borrowAmount -= repaid; 
+        uint256 repaid = position.borrowAmount.mulDiv(debt, position.debtAmount); 
+        state.reserveData.totalBorrows -= repaid;
+        position.borrowAmount -= repaid; 
         state.positionData.totalDebt -= debt;
         position.debtAmount -= debt;
 

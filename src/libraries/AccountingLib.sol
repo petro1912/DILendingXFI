@@ -3,11 +3,12 @@ pragma solidity ^0.8.18;
 
 import { LendingPoolStorage, State, ReserveData } from "../LendingPoolStorage.sol";
 import {FixedPointMathLib} from "@solady/utils/FixedPointMathLib.sol";
-import { WAD } from "../constant.sol";
 
 library Accounting {
 
     using FixedPointMathLib for uint256;
+
+    uint256 constant WAD = 1e18;
 
     function getHealthInfo(
         State storage state, 
@@ -27,9 +28,9 @@ library Accounting {
 
         uint256 liqudationThreshold = state.riskConfig.liquidationThreshold;
         collateralAmount = position.collateralAmount;
-        totalBorrowedAmount = state.getRepaidAmount(position.debtAmount);        
+        borrowedAmount = state.getRepaidAmount(position.debtAmount);        
 
-        healthFactor = collateralAmount.mulDiv(collateralAmount, liquidationThreshold, borrowedAmount);
+        healthFactor = collateralAmount.mulDiv(liquidationThreshold, borrowedAmount);
     }
 
     function getMaxLiquidationAmount(

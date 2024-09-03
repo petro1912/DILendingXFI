@@ -8,7 +8,8 @@ import {FixedPointMathLib} from "@solady/utils/FixedPointMathLib.sol";
 library InterestRateModel {
     using FixedPointMathLib for uint256;
     
-    uint256 constant YEAR = 1 years;     
+    uint256 constant YEAR = 1 years;   
+    uint256 constant WAD = 1e18;  
 
     function updateInterestRates(State storage state) external {
         uint256 borrowRate;
@@ -31,12 +32,12 @@ library InterestRateModel {
         }
     }
 
-     function calcUpdatedInterestRates(State storage state) external view returns (uint256 debtIndex, uint256 creditIndex) {
+    function calcUpdatedInterestRates(State storage state) external view returns (uint256 debtIndex, uint256 creditIndex) {
         uint256 borrowRate;
         RateData storage rateData = state.rateData;
         ReserveData storage reserveData = state.reserveData;
 
-        uint256 utilizationRate = _calculateUtilizationRate(reserveData.totalBorrows, reserveData.totalDeposits);
+        uint256 utilizationRate = _calculateUtilizationRate(reserveData);
         uint256 borrowRate = _calculateBorrowRate(utilizationRate);
         
         uint256 liquidityRate = borrowRate.mulWad(utilizationRate).mulWad(WAD - reserveFactor);
@@ -50,11 +51,11 @@ library InterestRateModel {
     }
     
     
-    function _calculateUtilizationRate(uint256 borrows, uint256 total) internal view returns(uint256) {
-        if (reserveData.totalDeposits == 0)
+    function _calculateUtilizationRate(uint256 borrows, uint256 deposits) internal view returns(uint256) {
+        if (borrows == 0)
             return 0;
 
-        return FixedPointMathLib.divWad(reserveData.totalBorrows, reserveData.totalDeposits);
+        return borrows.divWad(deposits);
     }
 
     function _calculateBorrowRate(uint256 utilizationRate) internal view returns(uint256 borrowRate) {

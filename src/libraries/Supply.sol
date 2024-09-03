@@ -28,11 +28,12 @@ library Supply {
         
         // update reserve data and credit position
         uint256 credit = state.getCreditAmount(_cashAmount);
-        if (_minCredit != 0)
-            require(credit >= _minCredit, "Minimum credit doesn't reach");
+        require(credit >= _minCredit, "Minimum credit doesn't reach");
         
+        state.reserveData.totalAccruedDeposits += _cashAmount;
         state.reserveData.totalDeposits += _cashAmount;
         state.positionData.totalCredit += credit;
+        position.totalDeposit += cashAmount;
         position.depositAmount += _cashAmount;
         position.creditAmount += credit;
 
@@ -53,8 +54,11 @@ library Supply {
         cash = state.getCashAmount(_creditAmount);
         uint256 withdawalCash = position.depositAmount.mulWad(_creditAmount, position.creditAmount);
 
+        state.reserveData.totalDeposits -= withrawalCash;
         state.positionData.totalCredit -= _creditAmount;
         state.reserveData.totalWithdrawals += cash;
+        
+        position.depositAmount -= withrawalCash;
         position.creditAmount -= _creditAmount;
         position.withdrawAmount += cash;        
 
@@ -72,12 +76,15 @@ library Supply {
         uint256 creditAmount = position.creditAmount;
         cash = state.getCashAmount(creditAmount);
         
-        state.reserveData.totalWithdrawals += cash;
+        state.reserveData.totalDeposits -= position.depositAmount;
         state.positionData.totalCredit -= creditAmount;
-        position.withdrawAmount += cash;
+        state.reserveData.totalWithdrawals += cash;
+        
+        position.depositAmount = 0;
         position.creditAmount = 0;
-
-        totalEarned = position.withdrawAmount - position.depositAmount;
+        position.withdrawAmount += cash;
+        
+        totalEarned = position.withdrawAmount - position.totalDeposit;
 
         state.transferPrincipal(state, msg.sender, cash);
 
