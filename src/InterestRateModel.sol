@@ -10,7 +10,7 @@ library InterestRateModel {
     
     uint256 constant YEAR = 1 years;     
 
-    function updateInterestRates(State storage state) external view returns (uint256) {
+    function updateInterestRates(State storage state) external {
         uint256 borrowRate;
         RateData storage rateData = state.rateData;
         ReserveData storage reserveData = state.reserveData;
@@ -26,7 +26,26 @@ library InterestRateModel {
         uint256 elapsed = block.timestamp - rateData.lastUpdated;
         if (elapsed > 0) {
             rateData.debtIndex = rateData.debtIndex.mulWad((WAD + rateData.borrowRate) * elapsed) / YEAR;
-            rateData.liquidityIndex = rateData.liquidityIndex.mulWad((WAD + rateData.liquidityRate) * elapsed) / YEAR;                  
+            rateData.liquidityIndex = rateData.liquidityIndex.mulWad((WAD + rateData.liquidityRate) * elapsed) / YEAR;      
+            rateData.lastUpdated = block.timestamp;            
+        }
+    }
+
+     function calcUpdatedInterestRates(State storage state) external view returns (uint256 debtIndex, uint256 creditIndex) {
+        uint256 borrowRate;
+        RateData storage rateData = state.rateData;
+        ReserveData storage reserveData = state.reserveData;
+
+        uint256 utilizationRate = _calculateUtilizationRate(reserveData.totalBorrows, reserveData.totalDeposits);
+        uint256 borrowRate = _calculateBorrowRate(utilizationRate);
+        
+        uint256 liquidityRate = borrowRate.mulWad(utilizationRate).mulWad(WAD - reserveFactor);
+
+        // update Liquidity and Debt Index
+        uint256 elapsed = block.timestamp - rateData.lastUpdated;
+        if (elapsed > 0) {
+            debtIndex = rateData.debtIndex.mulWad((WAD + borrowRate) * elapsed) / YEAR;
+            liquidityIndex = rateData.liquidityIndex.mulWad((WAD + liquidityRate) * elapsed) / YEAR;                  
         }
     }
     
@@ -58,11 +77,15 @@ library InterestRateModel {
 
     // amount of principal => debtToken Amount
     function getDebtAmount(State storage state, uint256 amount) external returns(uint256 debt) {
-        debt = amount.divWad(state.rateData.debtIndex);
+        debt = amount.divWadUp(state.rateData.debtIndex);
+    }
+
+    function getCashAmount(State storage state, uint256 credit) external returns(uint256 cash) {
+        cash = credit.mulWad(state.rateData.liquidityIndex);
     }
 
     function getRepaidAmount(State storage state, uint256 debt) external returns(uint256 amount) {
-        amount = debt.mulWad(state.rateData.debtIndex);
+        amount = debt.mulWadUp(state.rateData.debtIndex);
     }
 
 }

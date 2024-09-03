@@ -9,18 +9,22 @@ import {InterestRateModel} from "./InterestRateModel.sol";
 struct DebtPosition {
     uint256 collateralAmount;
     uint256 borrowAmount;
+    uint256 repaidAmount;
     uint256 debtAmount; 
 }
 
 struct CreditPosition {
     uint256 depositAmount;
+    uint256 withdrawAmount;
     uint256 creditAmount;
 }
 
 struct ReserveData {
     uint256 totalDeposits;
+    uint256 totalWithdrawals;
     uint256 totalCollaterals;
     uint256 totalBorrows;
+    uint256 totalRepaid;
 }
 
 struct RateData {

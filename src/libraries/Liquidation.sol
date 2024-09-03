@@ -23,9 +23,10 @@ library Liquidation  {
         //update reserve and borrower's debt
         DebtPosition storage position = state.positionData.debtPositions[_borrower];
         uint256 debt = state.getDebtAmount(_amount);
-        uint256 repaid = position.borrowAmount.mulDiv(debt, position.debtAmount); 
-        state.reserveData.totalBorrows -= repaid;
-        position.borrowAmount -= repaid; 
+        // uint256 repaid = position.borrowAmount.mulDiv(debt, position.debtAmount); 
+        // state.reserveData.totalBorrows -= repaid;
+        // position.borrowAmount -= repaid; 
+        state.positionData.totalDebt -= debt;
         position.debtAmount -= debt;
 
         // repaid principal behalf of borrower
@@ -47,7 +48,7 @@ library Liquidation  {
             uint256 maxLiqudiationBonus
         ) = state.getMaxLiquidationAmount(_borrower);
 
-        require(healthFactor >= WAD, "This account is healthy");
+        require(healthFactor < WAD, "This account is healthy");
         require(maxLiquidationAmount >= _amount, "Amount is too large");
     }
 

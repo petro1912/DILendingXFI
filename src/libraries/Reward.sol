@@ -5,19 +5,33 @@ import {LendingPoolStorage, ReserveData} from "../LendingPoolStorage.sol";
 
 library Reward {
 
-    function claimFee() external {
-        ReserveData storage borrowReserve = reserves[address(borrowToken)];
-        CollateralData storage collateral = userCollaterals[address(collateralToken)][msg.sender];
+    function getTotalEarnedAmount(State storage state) external returns (uint256 cash) {
+        (, uint256 creditIndex) = state.calcUpdatedInterestRates(state);
+        
+        uint256 totalDeposit = state.reserveData.totalDeposits;
+        uint256 totalWithdraw = state.reserveData.totalWithdrawals;
+        uint256 remainingCash = state.reserveData.totalCredit.mulWad(creditIndex);
 
-        uint256 feeShare = (collateral.collateralAmount * borrowReserve.totalFees) / borrowReserve.totalDeposits;
-        require(feeShare > 0, "No fees to claim");
+        return remainingCash + totalWithdraw - totalDeposit;
+    }    
 
-        borrowReserve.totalFees -= feeShare;
-        userFees[address(borrowToken)][msg.sender] += feeShare;
+    function getEarnedAmount(State storage state) external returns (uint256 cash) {
+        return _calcEarnedAmount(state, msg.sender);
+    }
 
-        borrowToken.transfer(msg.sender, feeShare);
+    function getEarnedAmount(State storage state, address user) external returns (uint256) {
+        return _calcEarnedAmount(state, user);
+    }
 
-        emit Event.FeeClaimed(msg.sender, feeShare);
+    function _calcEarnedAmount(State storage state, address user) external returns (uint256) {
+        (, uint256 creditIndex) = state.calcUpdatedInterestRates(state);
+        CreditPosition storage position = state.positionData.creditPositions[user];
+
+        uint256 totalDeposit = position.depositAmount;
+        uint256 totalWithdraw = position.withdrawAmount;
+        uint256 remainingCash = position.creditAmount.mulWad(creditIndex);
+
+        return remainingCash + totalWithdraw - totalDeposit;
     }
     
 }

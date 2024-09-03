@@ -36,7 +36,7 @@ library Accounting {
         State storage state, 
         address user
     ) 
-        internal 
+        external 
         returns(
             uint256 healthFactor,
             uint256 totalBorrowedAmount,
@@ -44,7 +44,7 @@ library Accounting {
             uint256 maxLiqudiationBonus
         ) 
     { 
-        (, totalBorrowedAmount, healthFactor) = getHealthFactor(state, user);
+        (, totalBorrowedAmount, healthFactor) = getHealthInfo(state, user);
         (
             maxLiquidationAmount,
             maxLiqudiationBonus

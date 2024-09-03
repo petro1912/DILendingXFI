@@ -3,7 +3,8 @@ pragma solidity ^0.8.18;
 
 library Events {
  
-    event Deposit(address indexed user, uint256 amount);
+    event DepositPrincipal(address indexed user, uint256 amount, uint256 credit);
+    event WithdrawPrincipal(address indexed user, uint256 amount, uint256 credit);
     event CollateralDeposited(address indexed user, uint256 amount);
     event CollateralWithdrawn(address indexed user, uint256 amount);
     event Borrowed(address indexed user, uint256 amount);
