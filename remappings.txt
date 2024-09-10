@@ -1,4 +1,3 @@
 @openzeppelin/contracts=lib/openzeppelin-contracts/contracts
-@chainlink/contracts/=lib/chainlink/contracts
 @solady=lib/solady/src
 @src=src

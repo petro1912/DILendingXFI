@@ -2,12 +2,13 @@
 pragma solidity ^0.8.18;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Oracle} from "./oracle/Oracle.sol";
 import {InterestRateModel} from "./InterestRateModel.sol";
+
+import { DIAOracleV2 } from "./oracle/DIAOracleV2Multiupdate.sol";
 
 
 struct DebtPosition {
-    uint256 collateralAmount;
+    mapping(address token => uint256 amount) collateralAmount;
     uint256 borrowAmount;
     uint256 repaidAmount;
     uint256 debtAmount; 
@@ -24,7 +25,7 @@ struct CreditPosition {
 struct ReserveData {
     uint256 totalDeposits; // Total Deposits 
     uint256 totalWithdrawals; // Total Accumulated withdrawals
-    uint256 totalCollaterals;
+    mapping (address token => uint256 collateralAmount) totalCollaterals;
     uint256 totalBorrows; // Total Accumulated borrows
     uint256 totalRepaid; // Total Accumulated repaid
     uint256 totalAccruedDeposits; 
@@ -40,10 +41,15 @@ struct RateData {
 }
 
 struct TokenConfig {
-    IERC20 collateralToken; // XUSD
     IERC20 principalToken; // USDT
-    Oracle collateralOracle; // XUSD
-    Oracle pincipalOracle; // USDT        
+    IERC20[] collateralTokens;
+    DIAOracleV2 oracle;         
+}
+
+struct TokenConfig {
+    IERC20 principalToken; // USDT
+    IERC20[] collateralTokens;
+    DIAOracleV2 oracle;         
 }
 
 struct FeeConfig {

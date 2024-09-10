@@ -8,6 +8,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {FixedPointMathLib} from "@solady/utils/FixedPointMathLib.sol";
 import { PriceLib } from "./PriceLib.sol";
+import { AccountingLib } from "./AccountingLib.sol";
 import { TransferLib } from "./TransferLib.sol";
 import { InterestRateModel } from "../InterestRateModel.sol";
 
@@ -15,13 +16,15 @@ library Borrow {
 
     using PriceLib for State;
     using TransferLib for State;    
+    using AccountingLib for State;
     using InterestRateModel for State;
     using FixedPointMathLib for uint256;
 
     uint256 constant WAD = 1e18;
 
-    function depositCollateral(State storage state, uint256 _amount) external {
+    function depositCollateral(State storage state, address _collateralToken, uint256 _amount) external {
         require(_amount > 0, "Invalid deposit amount");
+        require(state.tokenConfig.whitelisted[_collateralToken], "Not Supported Collateral");
  
         // update interest rate model
         state.updateInterestRates();
@@ -30,30 +33,30 @@ library Borrow {
         DebtPosition storage position = state.positionData.debtPositions[msg.sender];
         
         // Update collateral data for the user
-        reserveData.totalCollaterals += _amount;
-        position.collateralAmount += _amount;
+        reserveData.totalCollaterals[_collateralToken] += _amount;
+        position.collateralAmount[_collateralToken] += _amount;
 
         // Transfer the collateral token from the user to the contract
-        state.transferCollateral(msg.sender, address(this), _amount);
+        state.transferCollateral(_collateralToken, msg.sender, address(this), _amount);
         
         emit Events.CollateralDeposited(msg.sender, _amount);
     }
     
-    function withdrawCollateral(State state, uint256 _amount) external {
+    function withdrawCollateral(State state, address _collateralToken, uint256 _amount) external {
         // update interest rate model
         state.updateInterestRates();
 
         // validate enough collateral to withdraw
         ReserveData storage reserveData = state.reserveData;
         DebtPosition storage position = state.positionData.debtPositions[msg.sender];
-        _validateWithdrawCollateral(state, position, _amount);
+        _validateWithdrawCollateral(state, _collateralToken, position, _amount);
 
         // update collateral data for the user
-        position.collateralAmount -= _amount;
-        reserveData.totalCollaterals -= _amount;
+        position.collateralAmount[_collateralToken] -= _amount;
+        reserveData.totalCollaterals[_collateralToken] -= _amount;
 
         // Transfer the collateral token from the user to the contract
-        state.transferCollateral(msg.sender, _amount);
+        state.transferCollateral(_collateralToken, msg.sender, _amount);
 
         emit Events.CollateralWithdrawn(msg.sender, _amount);
     }
@@ -149,12 +152,14 @@ library Borrow {
     function _validateWithdrawCollateral(
         State storage state, 
         DebtPosition position,
+        address _collateralToken,
         uint256 _amount
     ) internal {
         require(_amount > 0, "Invalid withdraw amount");
+        require(_amount <= position.collateralAmount[_collateralToken], "Amount is large");
         
         uint256 liquidationThreshold = state.riskConfig.liquidationThreshold;
-        uint256 collateralPriceInPrincipal = state.collateralPriceInPrincipal();
+        uint256 collateralPriceInPrincipal = state.collateralPriceInPrincipal(_collateralToken);
         
         uint256 borrowAmount = position.borrowAmount;
         uint256 collateralAmount = position.collateralAmount;
@@ -173,17 +178,15 @@ library Borrow {
     ) internal {
         require(_amount > state.riskConfig.minimumBorrowToken, "Invalid borrow amount");
 
-        DebtPosition position = state.positionData.debtPositions[msg.sender];
+        DebtPosition memory position = state.positionData.debtPositions[msg.sender];
         uint256 loanToValue = state.riskConfig.loanToValue;
-        uint256 collateralPriceInPrincipal = state.collateralPriceInPrincipal();
 
         uint256 borrowedAmount = position.borrowAmount;
-        uint256 collateralAmount = position.collateralAmount;
-        uint256 maxBorrowAllowed = collateralAmount
-                                        .mulWad(collateralPriceInPrincipal)
-                                        .divWad(loanToValue);        
+        uint256 collateralAmount = state.getCollateralValueInPrincipal(position);
+        uint256 maxBorrowAllowed = collateralAmount.divWad(loanToValue);        
 
         require(_amount + borrowedAmount <= maxBorrowAllowed, "Not enough collateral to borrow");
         require(_amount + state.reserveData.totalBorrows <= state.riskConfig.borrowTokenCap, "Borrow cap reached");
     }
+
 }

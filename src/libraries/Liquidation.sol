@@ -16,7 +16,7 @@ library Liquidation  {
 
     uint256 constant WAD = 1e18;
     
-    function liquidate(State storage state, address _borrower, uint256 _amount) external {
+    function liquidate(State storage state, address _borrower, address _collateralToken, uint256 _amount) external {
         // update interest rate model
         state.updateInterestRates();
 
@@ -32,14 +32,26 @@ library Liquidation  {
         position.debtAmount -= debt;
 
         // repaid principal behalf of borrower
-        uint256 collateralAmount = _amount.mulWad(state.collateralPriceInPrincipal());
-        collateralAmount += collateralAmount.mulWad(state.riskConfig.liquidationBonus);
+        address[] memory tokens = state.tokenConfig.collateralTokens;
+        uint256 tokensCount = tokens.length;
+        uint256 totalPaid = _amount.mulWad(state.riskConfig.liquidationBonus);
 
         state.transferPrincipal(msg.sender, address(this), _amount);
-        state.transferCollateral(msg.sender, collateralAmount);
-        
-        // @audit and then ??? remaining to => the position owner???
+        for (uint256 i = 0;  i < tokenCount; ) {
+            address token = tokens[i];
+            uint256 principalAmount = state.getCollateralValueInPrincipal(position, token);
+            if (totalPaid > principalAmount) {
+                totalPaid -= principalAmount;
+                state.transferCollateral(token, msg.sender, principalAmount);  
+            } else {
+                state.transferCollateral(token, msg.sender, totalPaid);  
+                break;      
+            }
 
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     function _validateLiquidation(State storage state, address _borrower, uint256 _amount) internal {

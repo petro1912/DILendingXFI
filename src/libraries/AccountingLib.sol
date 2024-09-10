@@ -3,10 +3,12 @@ pragma solidity ^0.8.18;
 
 import { LendingPoolStorage, State, ReserveData } from "../LendingPoolStorage.sol";
 import {FixedPointMathLib} from "@solady/utils/FixedPointMathLib.sol";
+import {PriceLib} from './PriceLib.sol';
 
-library Accounting {
+library AccountingLib {
 
     using FixedPointMathLib for uint256;
+    using PriceLib for State;
 
     uint256 constant WAD = 1e18;
 
@@ -22,12 +24,12 @@ library Accounting {
         ) 
     {
         
-        DebtPosition storage position = state.positionData.debtPositions[user];
+        DebtPosition memory position = state.positionData.debtPositions[user];
         if (position.debtAmount == 0)
             return type(uint256).max;
 
         uint256 liqudationThreshold = state.riskConfig.liquidationThreshold;
-        collateralAmount = position.collateralAmount;
+        collateralAmount = _collateralValueInPrincipal(state, position);
         borrowedAmount = state.getRepaidAmount(position.debtAmount);        
 
         healthFactor = collateralAmount.mulDiv(liquidationThreshold, borrowedAmount);
@@ -76,6 +78,35 @@ library Accounting {
             liqudiationBonus = totalBorrowedAmount * state.riskConfig.liquidationBonus;
         }
         
+    }
+    
+    function getCollateralValueInPrincipal(State storage state, DebtPosition memory position) external returns(uint256 principalAmount) {
+        return _collateralValueInPrincipal(state, position);      
+    }
+
+    function getCollateralValueInPrincipal(State storage state, DebtPosition memory position, IERC20 collateralToken) external returns(uint256 principalAmount) {
+        return _collateralValueInPrincipal(state, position, collateralToken);
+    }
+
+    function _collateralValueInPrincipal(State storage state, DebtPosition memory position) internal returns(uint256 principalAmount) {
+        IERC20[] memory collateralTokens = state.tokenConfig.collateralTokens;
+        uint256 tokensCount = collateralTokens.length;
+        for (uint256 i = 0; i < tokensCount; ) {
+            principalAmount += _collateralValueInPrincipal(state, position, collateralTokens[i]);
+
+            unchecked {
+                ++i;
+            }
+        }        
+    }
+
+    function _collateralValueInPrincipal(State storage state, DebtPosition memory position, IERC20 collateralToken) internal returns(uint256 principalAmount) {
+
+        uint256 amount = position.collateralAmount[collateralToken];    
+        uint256 collateralPriceInPrincipal = state.collateralPriceInPrincipal(collateralToken);
+        if (amount != 0) {
+            principalAmount = amount.mulWad(collateralPriceInPrincipal);
+        }
     }
     
 }

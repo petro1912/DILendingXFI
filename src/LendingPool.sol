@@ -5,9 +5,11 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { InterestRateModel } from "./InterestRateModel.sol";
-import {LendingPoolStorage, InitializeParam, ReserveData, CollateralData} from "./LendingPoolStorage.sol";
+import {LendingPoolStorage, InitializeParam, TokenInfo, ReserveData, CollateralData} from "./LendingPoolStorage.sol";
 import {LendingPoolView} from "./LendingPoolView.sol";
 import {Events} from "./libraries/Events.sol";
+
+import {Oracle} from './oracle/Oracle.sol';
 
 contract LendingPool is 
     InterestRateModel, 
@@ -30,21 +32,14 @@ contract LendingPool is
     }    
 
     function initilizeTokenConfig(
-        TokenConfig memory tokenConfig
+        TokenConfig memory tokenInfo
     ) internal {
-        require(
-            tokenConfig.collateralToken != address(0) &&
-            tokenConfig.principalToken != address(0) &&
-            tokenConfig.collateralOracle != address(0),
-            "Wrong Address"
-        );             
-
-        state.tokenConfig.collateralToken = IERC20(tokenConfig.collateralToken);
-        state.tokenConfig.principalToken = IERC20(tokenConfig.principalToken);
-        state.tokenConfig.collateralOracle = ChainlinkOracle(tokenConfig.collateralOracle);
-        if (tokenConfig.principalOracle != address(0))
-            state.tokenConfig.principalOracle = ChainlinkOracle(tokenConfig.principalOracle);
+        require(tokenInfo.token == adress(0), "Wrong Address");
+        state.tokenConfig.principalToken = tokenInfo.token;
+        state.tokenConfig.oracle = tokenInfo.oracle;
+        _addCollateralTokens(tokenInfo.collateralTokens);
     }
+    
 
     function initializeRiskConfig(
         RiskConfig memory riskConfig
@@ -75,6 +70,27 @@ contract LendingPool is
     }
 
     // ========================== Management Functions ==========================
+
+    function addCollateralTokens(IECR20[] collateralTokens) external onlyOwner {
+        _addCollateralTokens(collateralTokens);
+    }
+    
+    function _addCollateralTokens(IECR20[] _collateralTokens) internal {
+        uint256 tokenCount = _collateralTokens.length;
+        for (uint256 i = 0; i < tokenCount; ) {
+            _addCollateralToken(_collateralTokens[i]);
+            unchecked {
+                ++i;
+            }
+        }
+    }    
+
+    function _addCollateralToken(IERC20 _collateralToken) internal {
+        require(address(_collateralToken) == address(0), "Wrong Address");
+
+        state.tokenConfig.collateralTokens.push(_collateralToken);
+        state.tokenConfig.collateralWhitelisted[address(_collateralToken)] = true;
+    }
 
     function setLoanToValue(uint256 _loanToValue) external onlyOwner {
         require(_loanToValue > 0 && _loanToValue <= 1e18, "Invalid liquidation threshold");
