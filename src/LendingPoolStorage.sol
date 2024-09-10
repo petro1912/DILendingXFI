@@ -2,8 +2,7 @@
 pragma solidity ^0.8.18;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {InterestRateModel} from "./InterestRateModel.sol";
-
+import {InterestRateModel} from "./libraries/InterestRateModel.sol";
 import { DIAOracleV2 } from "./oracle/DIAOracleV2Multiupdate.sol";
 
 
@@ -28,7 +27,7 @@ struct ReserveData {
     mapping (address token => uint256 collateralAmount) totalCollaterals;
     uint256 totalBorrows; // Total Accumulated borrows
     uint256 totalRepaid; // Total Accumulated repaid
-    uint256 totalAccruedDeposits; 
+    uint256 totalCredit; 
 }
 
 struct RateData {
@@ -37,19 +36,37 @@ struct RateData {
     uint256 liquidityRate;
     uint256 debtIndex;
     uint256 liquidityIndex;
-    uint64 lastUpdated;
+    uint256 lastUpdated;
+}
+
+struct TokenInfo {
+    bool whitelisted;
+    string collateralKey;
+}
+
+struct CollateralInfo {
+    IERC20 tokenAddress;
+    TokenInfo tokenInfo;
+}
+
+struct InitialCollateralInfo {
+    IERC20 tokenAddress;
+    string collateralKey;
 }
 
 struct TokenConfig {
     IERC20 principalToken; // USDT
+    string principalKey;
     IERC20[] collateralTokens;
+    mapping(address token => TokenInfo tokenInfo) collateralsInfo;
     DIAOracleV2 oracle;         
 }
 
-struct TokenConfig {
+struct InitializeTokenConfig {
     IERC20 principalToken; // USDT
-    IERC20[] collateralTokens;
-    DIAOracleV2 oracle;         
+    string principalKey;
+    DIAOracleV2 oracle;     
+    InitialCollateralInfo[] collaterals;    
 }
 
 struct FeeConfig {
@@ -62,6 +79,7 @@ struct RateConfig {
     uint256 rateSlope1; // Slope 1 for utilization below optimal rate (e.g., 4%)
     uint256 rateSlope2; // Slope 2 for utilization above optimal rate (e.g., 20%)
     uint256 optimalUtilizationRate; // Optimal utilization rate (e.g., 80%)
+    uint256 reserveFactor;
 }
 
 struct RiskConfig {
@@ -81,7 +99,7 @@ struct PositionData {
 }
 
 struct InitializeParam {
-    TokenConfig tokenConfig;
+    InitializeTokenConfig tokenConfig;
     FeeConfig feeConfig;
     RiskConfig riskConfig;
     RateConfig rateConfig;

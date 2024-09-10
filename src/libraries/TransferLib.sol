@@ -20,27 +20,27 @@ library TransferLib {
 
     function transferCollateral(State storage state, address _collateralToken, address _from, address _to, uint256 _amount) external {
         _validateTransfer(_from, _to, _amount);
-        _validateCollateralToken(_collateralToken);
+        _validateCollateralToken(state, _collateralToken);
         IERC20(_collateralToken).safeTransferFrom(_from, _to, _amount);
     }
 
     function transferCollateral(State storage state, address _collateralToken, address _to, uint256 _amount) external {
         _validateTransfer(_to, _amount);
-        _validateCollateralToken(_collateralToken);
+        _validateCollateralToken(state, _collateralToken);
         IERC20(_collateralToken).safeTransferFrom(address(this), _to, _amount);
     }
 
-    function _validateTransfer(address _from,  address _to, uint256 _amount) internal {
-        require (_from != 0 && _to != 0, "Invalid address");
+    function _validateTransfer(address _from,  address _to, uint256 _amount) internal pure {
+        require (_from != address(0) && _to != address(0), "Invalid address");
         require (_amount > 0, "Invalid Amount");
     }
 
-    function _validateTransfer(address _to, uint256 _amount) internal {
-        require (_to != 0, "Invalid address");
+    function _validateTransfer(address _to, uint256 _amount) internal pure {
+        require (_to != address(0), "Invalid address");
         require (_amount > 0, "Invalid Amount");
     }
 
-    function _validateCollateralToken(State storage state, address _collateralToken) internal {
-        require(state.tokenConfig.collateralTokens[_collateralToken], "Not Supported Token");
+    function _validateCollateralToken(State storage state, address _collateralToken) internal view {
+        require(state.tokenConfig.collateralsInfo[_collateralToken].whitelisted, "Not Supported Token");
     }
 }

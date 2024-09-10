@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import { LendingPoolStorage, State, ReserveData } from "../LendingPoolStorage.sol";
-import { Oracle } from "../oracle/Oracle.sol";
+import { LendingPoolStorage, State, DebtPosition, ReserveData } from "../LendingPoolStorage.sol";
 import { Events } from "./Events.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -10,7 +9,7 @@ import {FixedPointMathLib} from "@solady/utils/FixedPointMathLib.sol";
 import { PriceLib } from "./PriceLib.sol";
 import { AccountingLib } from "./AccountingLib.sol";
 import { TransferLib } from "./TransferLib.sol";
-import { InterestRateModel } from "../InterestRateModel.sol";
+import { InterestRateModel } from "./InterestRateModel.sol";
 
 library Borrow {
 
@@ -20,12 +19,9 @@ library Borrow {
     using InterestRateModel for State;
     using FixedPointMathLib for uint256;
 
-    uint256 constant WAD = 1e18;
-
     function depositCollateral(State storage state, address _collateralToken, uint256 _amount) external {
         require(_amount > 0, "Invalid deposit amount");
-        require(state.tokenConfig.whitelisted[_collateralToken], "Not Supported Collateral");
- 
+        
         // update interest rate model
         state.updateInterestRates();
 
@@ -42,14 +38,14 @@ library Borrow {
         emit Events.CollateralDeposited(msg.sender, _amount);
     }
     
-    function withdrawCollateral(State state, address _collateralToken, uint256 _amount) external {
+    function withdrawCollateral(State storage state, address _collateralToken, uint256 _amount) external {
         // update interest rate model
         state.updateInterestRates();
 
         // validate enough collateral to withdraw
         ReserveData storage reserveData = state.reserveData;
         DebtPosition storage position = state.positionData.debtPositions[msg.sender];
-        _validateWithdrawCollateral(state, _collateralToken, position, _amount);
+        _validateWithdrawCollateral(state, position, _collateralToken, _amount);
 
         // update collateral data for the user
         position.collateralAmount[_collateralToken] -= _amount;
@@ -65,7 +61,6 @@ library Borrow {
         // update interest rate model
         state.updateInterestRates();
         
-        ReserveData storage reserveData = state.reserveData;
         DebtPosition storage position = state.positionData.debtPositions[msg.sender];
         _validateBorrow(state, position, _amount);
 
@@ -81,7 +76,7 @@ library Borrow {
         // Transfer the principal token from the contract to the user
         state.transferPrincipal(msg.sender, _amount);
 
-        emit Event.Borrowed(msg.sender, _amount);
+        emit Events.Borrowed(msg.sender, _amount);
     }
 
     function repay(State storage state, uint256 _amount) external {
@@ -89,11 +84,11 @@ library Borrow {
         state.updateInterestRates();
 
         // validate repay amount
-        _validateRepay(state, _amount);
+        DebtPosition storage position = state.positionData.debtPositions[msg.sender];
+        _validateRepay(state, position, _amount);
         uint256 debt = state.getDebtAmount(_amount);
         
         // update debt, and borrow amount
-        DebtPosition storage position = state.positionData.debtPositions[msg.sender];
         uint256 repaid = position.borrowAmount.mulDiv(debt, position.debtAmount); 
         
         state.reserveData.totalBorrows -= repaid; 
@@ -133,52 +128,52 @@ library Borrow {
         emit Events.Repaid(msg.sender, position.borrowAmount, repaid);
     }
 
-    function getFullRepayAmount(State storage state) external returns (uint256 repaid) {
+    function getFullRepayAmount(State storage state) external view returns (uint256 repaid) {
         // update interest rate model
-        state.calcUpdatedInterestRates();
-        repaid = _calculateRepaidAmount(state);
+        (uint256 debtIndex, ) = state.calcUpdatedInterestRates();
+        DebtPosition storage position = state.positionData.debtPositions[msg.sender];
+        repaid = position.debtAmount.mulWadUp(debtIndex);
     }
 
-    function _calculateRepaidAmount(State storage state) internal returns (uint256 repaid) {
+    function _calculateRepaidAmount(State storage state) internal view returns (uint256 repaid) {
         DebtPosition storage position = state.positionData.debtPositions[msg.sender];
         repaid = state.getRepaidAmount(position.debtAmount);
     }
 
-    function _validateRepay(State storage state, DebtPosition position, uint256 _amount) internal {
+    function _validateRepay(State storage state, DebtPosition storage position, uint256 _amount) internal view {
         uint256 repayAmount = position.debtAmount.mulWad(state.rateData.debtIndex);
         require(_amount > 0 || _amount <= repayAmount, "Invalid repay amount");        
     }
 
     function _validateWithdrawCollateral(
         State storage state, 
-        DebtPosition position,
+        DebtPosition storage position,
         address _collateralToken,
         uint256 _amount
-    ) internal {
+    ) internal view {
         require(_amount > 0, "Invalid withdraw amount");
         require(_amount <= position.collateralAmount[_collateralToken], "Amount is large");
         
         uint256 liquidationThreshold = state.riskConfig.liquidationThreshold;
-        uint256 collateralPriceInPrincipal = state.collateralPriceInPrincipal(_collateralToken);
         
-        uint256 borrowAmount = position.borrowAmount;
-        uint256 collateralAmount = position.collateralAmount;
-        uint256 collateralUsedInBorrow = borrowAmount
-                                                .divWad(collateralPriceInPrincipal)
-                                                .divWadUp(liquidationThreshold);
-        uint256 maxWithdrawAllowed = collateralAmount - collateralUsedInBorrow;
+        uint256 borrowAmount = state.getRepaidAmount(position.debtAmount);
+        uint256 collateralInUSD = state.getCollateralValueInUSD(position);
+        uint256 borrowInUSD = state.getPrincipalValueInUSD(borrowAmount);
+        uint256 collateralUsed = borrowInUSD.divWadUp(liquidationThreshold);
+        uint256 maxWithdrawAllowed = collateralInUSD - collateralUsed;
 
-        require(_amount <= maxWithdrawAllowed, "Not enough collateral to withdraw");
+        uint256 withdrawInUsd = state.collateralValueInUSD(_collateralToken, _amount); 
+
+        require(withdrawInUsd <= maxWithdrawAllowed, "Not enough collateral to withdraw");
     }
 
     function _validateBorrow(
         State storage state, 
-        DebtPosition position,
+        DebtPosition storage position,
         uint256 _amount
-    ) internal {
+    ) internal view {
         require(_amount > state.riskConfig.minimumBorrowToken, "Invalid borrow amount");
 
-        DebtPosition memory position = state.positionData.debtPositions[msg.sender];
         uint256 loanToValue = state.riskConfig.loanToValue;
 
         uint256 borrowedAmount = position.borrowAmount;

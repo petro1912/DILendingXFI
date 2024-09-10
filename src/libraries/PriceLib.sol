@@ -12,33 +12,49 @@ library PriceLib {
 
     function collateralPriceInPrincipal(
         State storage state,
-        IERC20 collateralToken
-    ) external returns(uint256) {
+        address collateralToken
+    ) external view returns(uint256) {
         
-        IERC20 principalToken = state.tokenConfig.principalToken;
-        
-        string memory principalKey = principalToken.symbol();
-        string memory collateralKey = collateralToken.symbol();
+        string memory principalKey = state.tokenConfig.principalKey;
+        string memory collateralKey = state.tokenConfig.collateralsInfo[collateralToken].collateralKey;
 
-        (uint256 principalPrice, ) = oracle.getValue(principalKey);
-        (uint256 collateralPrice, ) = oracle.getValue(collateralKey);
+        (uint256 principalPrice, ) = state.tokenConfig.oracle.getValue(principalKey);
+        (uint256 collateralPrice, ) = state.tokenConfig.oracle.getValue(collateralKey);
         
 
         return collateralPrice.divWad(principalPrice);
     }
 
+    function principalPriceInUSD(
+        State storage state
+    ) external view returns(uint256) {
+        
+        string memory principalKey = state.tokenConfig.principalKey;
+        (uint256 collateralPrice, ) = state.tokenConfig.oracle.getValue(principalKey);
+        
+        return collateralPrice;
+    }
+
     function collateralPriceInUSD(
         State storage state,
-        IERC20 collateralToken
-    ) external returns(uint256) {
+        address collateralToken
+    ) external view returns(uint256) {
         
-        IERC20 principalToken = state.tokenConfig.principalToken;
-        
-        string memory collateralKey = collateralToken.symbol();
-
-        (uint256 collateralPrice, ) = oracle.getValue(collateralKey);
-        
+        string memory collateralKey = state.tokenConfig.collateralsInfo[collateralToken].collateralKey;
+        (uint256 collateralPrice, ) = state.tokenConfig.oracle.getValue(collateralKey);
 
         return collateralPrice;
+    }
+
+    function collateralValueInUSD(
+        State storage state,
+        address collateralToken,
+        uint256 amount
+    ) external view returns(uint256) {
+        
+        string memory collateralKey = state.tokenConfig.collateralsInfo[collateralToken].collateralKey;
+        (uint256 collateralPrice, ) = state.tokenConfig.oracle.getValue(collateralKey);
+
+        return collateralPrice.mulWad(amount) ;
     }
 } 

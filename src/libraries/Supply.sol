@@ -8,7 +8,7 @@ import {
     State, 
     ReserveData
 } from "../LendingPoolStorage.sol";
-import { InterestRateModel } from "../InterestRateModel.sol";
+import { InterestRateModel } from "./InterestRateModel.sol";
 import { Events } from "./Events.sol";
 import { TransferLib } from "./TransferLib.sol";
 
@@ -27,13 +27,13 @@ library Supply {
         CreditPosition storage position = state.positionData.creditPositions[msg.sender];
         
         // update reserve data and credit position
-        uint256 credit = state.getCreditAmount(_cashAmount);
+        credit = state.getCreditAmount(_cashAmount);
         require(credit >= _minCredit, "Minimum credit doesn't reach");
         
-        state.reserveData.totalAccruedDeposits += _cashAmount;
+        state.reserveData.totalCredit += _cashAmount;
         state.reserveData.totalDeposits += _cashAmount;
         state.positionData.totalCredit += credit;
-        position.totalDeposit += cashAmount;
+        position.totalDeposit += _cashAmount;
         position.depositAmount += _cashAmount;
         position.creditAmount += credit;
 
@@ -52,19 +52,19 @@ library Supply {
         CreditPosition storage position = state.positionData.creditPositions[msg.sender];
 
         cash = state.getCashAmount(_creditAmount);
-        uint256 withdawalCash = position.depositAmount.mulWad(_creditAmount, position.creditAmount);
+        uint256 withdrawalCash = position.depositAmount.mulDiv(_creditAmount, position.creditAmount);
 
-        state.reserveData.totalDeposits -= withrawalCash;
+        state.reserveData.totalDeposits -= withdrawalCash;
         state.positionData.totalCredit -= _creditAmount;
         state.reserveData.totalWithdrawals += cash;
         
-        position.depositAmount -= withrawalCash;
+        position.depositAmount -= withdrawalCash;
         position.creditAmount -= _creditAmount;
         position.withdrawAmount += cash;        
 
-        state.transferPrincipal(state, msg.sender, cash);
+        state.transferPrincipal(msg.sender, cash);
 
-        emit Events.withrawPrincipal(msg.sender, cash, _creditAmount);
+        emit Events.WithdrawPrincipal(msg.sender, cash, _creditAmount);
     }
 
     function withrawAllSupply(State storage state) external returns (uint256 cash, uint256 totalEarned) {
@@ -86,8 +86,8 @@ library Supply {
         
         totalEarned = position.withdrawAmount - position.totalDeposit;
 
-        state.transferPrincipal(state, msg.sender, cash);
+        state.transferPrincipal(msg.sender, cash);
 
-        emit Events.withrawPrincipal(msg.sender, cash, _creditAmount);
+        emit Events.WithdrawPrincipal(msg.sender, cash, creditAmount);
     }
 } 
