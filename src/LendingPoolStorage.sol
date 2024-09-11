@@ -3,8 +3,35 @@ pragma solidity ^0.8.18;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {InterestRateModel} from "./libraries/InterestRateModel.sol";
+import {AccountingLib} from './libraries/AccountingLib.sol';
+import {PriceLib} from './libraries/PriceLib.sol';
 import { DIAOracleV2 } from "./oracle/DIAOracleV2Multiupdate.sol";
 
+
+struct PoolInfo {
+    address poolAddress;
+    address principalToken;
+    // address[] collateralTokens;
+    uint256 totalDeposits;
+    uint256 totalBorrows;
+    uint256 totalCollaterals;
+    uint256 utilizationRate;
+    uint256 borrowAPR;
+    uint256 earnAPR;
+}
+
+struct CollateralData {
+    address token;
+    uint256 totalSupply;
+    uint256 oraclePrice;
+}
+
+struct CollateralsData {
+    CollateralData[] tokenData;
+    uint256 loanToValue;
+    uint256 liquidationThreshold;
+    uint256 liquidationBonus;
+}
 
 struct DebtPosition {
     mapping(address token => uint256 amount) collateralAmount;
@@ -116,6 +143,94 @@ struct State {
 }
 
 abstract contract LendingPoolStorage {
-
+    using AccountingLib for State;
+    using PriceLib for State;
     State internal state;
+
+    function getPrincipalToken() public view returns (address principalToken) {
+        principalToken = address(state.tokenConfig.principalToken);
+    }
+
+    function getCollateralTokens() public view returns (address[] memory collateralTokens) {
+        IERC20[] memory contracts = state.tokenConfig.collateralTokens;
+        for (uint i = 0; i < contracts.length; ) {
+            collateralTokens[i] = address(contracts[i]);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function getPoolStatistics() 
+        public 
+        view
+        returns (
+            uint256 totalDeposits, 
+            uint256 totalCollaterals, 
+            uint256 totalBorrows
+        ) 
+    {
+        IERC20[] memory collateralTokens = state.tokenConfig.collateralTokens;
+
+        totalDeposits = state.getPrincipalValueInUSD(state.reserveData.totalDeposits);
+        totalBorrows = state.getPrincipalValueInUSD(state.reserveData.totalBorrows);
+        for (uint i = 0; i < collateralTokens.length; ) {
+            address collateralToken = address(collateralTokens[i]);
+            totalCollaterals += state.getCollateralValueInUSD(
+                collateralToken, 
+                state.reserveData.totalCollaterals[collateralToken]
+            );
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function getPoolInfo() public view returns(PoolInfo memory info) {
+        (
+            uint256 totalDeposits, 
+            uint256 totalCollaterals, 
+            uint256 totalBorrows
+        ) = getPoolStatistics();
+
+        info = PoolInfo({
+            poolAddress: address(this),
+            principalToken: getPrincipalToken(),
+            // collateralTokens: getCollateralTokens(),
+            totalDeposits: totalDeposits,
+            totalBorrows: totalBorrows,
+            totalCollaterals: totalCollaterals,
+            utilizationRate: state.rateData.utilizationRate,
+            borrowAPR: state.rateData.borrowRate,
+            earnAPR: state.rateData.liquidityRate
+        });
+    }
+
+    function getCollateralsData() public view returns(CollateralsData memory info) {
+
+        IERC20[] memory collateralTokens = state.tokenConfig.collateralTokens;
+        uint256 tokensCount = collateralTokens.length;
+        CollateralData[] memory _tokenData = new CollateralData[](tokensCount); 
+        for (uint256 i = 0; i < tokensCount; ) {
+            address _tokenAddress = address(collateralTokens[i]);
+            uint256 _totalSupply = state.reserveData.totalCollaterals[_tokenAddress];
+            uint256 _oraclePrice = state.collateralPriceInUSD(_tokenAddress);
+            _tokenData[i] = CollateralData({
+                token: _tokenAddress,
+                totalSupply: _totalSupply,
+                oraclePrice: _oraclePrice
+            });
+            
+            unchecked {
+                ++i;
+            }
+        }
+
+        info = CollateralsData({
+            tokenData: _tokenData,
+            loanToValue: state.riskConfig.loanToValue,
+            liquidationThreshold: state.riskConfig.liquidationThreshold,
+            liquidationBonus: state.riskConfig.liquidationBonus
+        });
+    }
 }

@@ -22,6 +22,7 @@ import {Borrow} from "./libraries/Borrow.sol";
 import {Supply} from "./libraries/Supply.sol";
 import { InterestRateModel } from "./libraries/InterestRateModel.sol";
 import {Liquidation} from "./libraries/Liquidation.sol";
+import {console} from 'forge-std/console.sol';
 
 contract LendingPool is 
     LendingPoolAction, 
@@ -42,7 +43,7 @@ contract LendingPool is
     function initilizeTokenConfig(
         InitializeTokenConfig memory tokenInfo
     ) internal {
-        require(address(tokenInfo.principalToken) == address(0), "Wrong Address");
+        require(address(tokenInfo.principalToken) != address(0), "Wrong Address");
         state.tokenConfig.principalToken = tokenInfo.principalToken;
         state.tokenConfig.principalKey = tokenInfo.principalKey;
         state.tokenConfig.oracle = tokenInfo.oracle;
@@ -71,8 +72,9 @@ contract LendingPool is
     function initializeRateData(
         RateConfig memory rateConfig
     ) internal {
-        state.rateData.debtIndex = 1;
-        state.rateData.liquidityIndex = 1;
+        state.rateData.debtIndex = 1e18;
+        state.rateData.liquidityIndex = 1e18;
+        state.rateData.borrowRate = rateConfig.baseRate;
         state.rateData.lastUpdated = block.timestamp;
 
         _setInterestRateConfig(rateConfig);
@@ -96,7 +98,7 @@ contract LendingPool is
 
     function _addCollateralToken(InitialCollateralInfo memory _collateralInfo) internal {
         address collateralToken = address(_collateralInfo.tokenAddress);
-        require(collateralToken == address(0), "Wrong Address");
+        require(collateralToken != address(0), "Wrong Address");
 
         state.tokenConfig.collateralTokens.push(_collateralInfo.tokenAddress);
         state.tokenConfig.collateralsInfo[collateralToken].whitelisted = true;

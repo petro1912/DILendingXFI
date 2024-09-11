@@ -113,6 +113,10 @@ library AccountingLib {
         return _collateralValueInUSD(state, position);
     }    
 
+    function getCollateralValueInUSD(State storage state, address collateralToken, uint256 amount) external view returns (uint256 usdValue) {
+        return state.collateralPriceInUSD(collateralToken).mulWad(amount);
+    }
+
     function getPrincipalValueInUSD(State storage state, uint256 repaidAmount) external view returns(uint256 usdValue) {
         return _principalValueInUSD(state, repaidAmount);
     }  

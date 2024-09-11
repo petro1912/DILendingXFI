@@ -25,10 +25,13 @@ import { lpXFI }  from "@src/mock/tokens/lpXFI.sol";
 import { lpUSD }  from "@src/mock/tokens/lpUSD.sol";
 import { lpMPX }  from "@src/mock/tokens/lpMPX.sol";
 
+import {console} from 'forge-std/console.sol';
 contract DeployScript is Script {
 
     string constant TEST_MNEMONIC = "test test test test test test test test test test test junk";
     string constant TEST_CHAIN_NAME = "anvil";
+
+    bool mockTokenDeployed = true;
 
     IERC20 wxfi;
     IERC20 weth;
@@ -54,7 +57,7 @@ contract DeployScript is Script {
     }
     
     modifier broadcast() {
-        vm.startBroadcast();
+        vm.startBroadcast(vm.deriveKey(TEST_MNEMONIC, 0));
         _;
         vm.stopBroadcast();
     }
@@ -78,6 +81,7 @@ contract DeployScript is Script {
         poolFactoryAddress = address(poolFactory);
         oracleAddress = address(oracle);
         
+        mockTokens = new address[](11);
         mockTokens[0] = address(wxfi);
         mockTokens[1] = address(weth);
         mockTokens[2] = address(xft);
@@ -89,22 +93,37 @@ contract DeployScript is Script {
         mockTokens[8] = address(lpxfi);
         mockTokens[9] = address(lpusd);
         mockTokens[10] = address(lpmpx);  
-
+        
         pools = poolFactory.getAllPoolAddresses();
     }
 
     function setupMockTokens() public {
-        wxfi = new WXFI();
-        weth = new WETH();
-        xft = new XFT(deployer);
-        empx = new eMPX(deployer);
-        exe = new EXE(deployer);
-        xusd = new XUSD(deployer);
-        usdt = new USDT(deployer);
-        usdc = new USDC(deployer);
-        lpxfi = new lpXFI(deployer);
-        lpusd = new lpUSD(deployer);
-        lpmpx = new lpMPX(deployer);    
+        if (mockTokenDeployed) {
+            wxfi = IERC20(address(0xA4899D35897033b927acFCf422bc745916139776));
+            weth = IERC20(address(0xf953b3A269d80e3eB0F2947630Da976B896A8C5b));
+            xft = IERC20(address(0xAA292E8611aDF267e563f334Ee42320aC96D0463));
+            empx = IERC20(address(0x5c74c94173F05dA1720953407cbb920F3DF9f887));
+            exe = IERC20(address(0x720472c8ce72c2A2D711333e064ABD3E6BbEAdd3));
+            xusd = IERC20(address(0xe8D2A1E88c91DCd5433208d4152Cc4F399a7e91d));
+            usdt = IERC20(address(0x5067457698Fd6Fa1C6964e416b3f42713513B3dD));
+            usdc = IERC20(address(0x18E317A7D70d8fBf8e6E893616b52390EbBdb629));
+            lpxfi = IERC20(address(0x4b6aB5F819A515382B0dEB6935D793817bB4af28));
+            lpusd = IERC20(address(0xCace1b78160AE76398F486c8a18044da0d66d86D));
+            lpmpx = IERC20(address(0xD5ac451B0c50B9476107823Af206eD814a2e2580));
+        } else {
+            wxfi = new WXFI();
+            weth = new WETH();
+            xft = new XFT(deployer);
+            empx = new eMPX(deployer);
+            exe = new EXE(deployer);
+            xusd = new XUSD(deployer);
+            usdt = new USDT(deployer);
+            usdc = new USDC(deployer);
+            lpxfi = new lpXFI(deployer);
+            lpusd = new lpUSD(deployer);
+            lpmpx = new lpMPX(deployer);    
+        }
+        
     }
 
     function setupLendingPools(LendingPoolFactory factory, DIAOracleV2 oracle) 
@@ -127,7 +146,7 @@ contract DeployScript is Script {
     }
 
     function setupUSDTLendingPool(LendingPoolFactory factory, DIAOracleV2 oracle) public returns(address USDT_Pool) {
-        InitialCollateralInfo[] memory collaterals;
+        InitialCollateralInfo[] memory collaterals = new InitialCollateralInfo[](6);
         collaterals[0] = InitialCollateralInfo({
             tokenAddress: xusd,
             collateralKey: "xusd/usd"
@@ -198,7 +217,7 @@ contract DeployScript is Script {
     }
 
     function setupXUSDLendingPool(LendingPoolFactory factory, DIAOracleV2 oracle) public returns(address xUSD_Pool) {
-        InitialCollateralInfo[] memory collaterals;
+        InitialCollateralInfo[] memory collaterals = new InitialCollateralInfo[](6);
         collaterals[0] = InitialCollateralInfo({
             tokenAddress: usdt,
             collateralKey: "usdt/usd"
@@ -269,7 +288,7 @@ contract DeployScript is Script {
     }
 
     function setupLPLendingPool(LendingPoolFactory factory, DIAOracleV2 oracle) public returns(address lpXFI_Pool, address lpUSD_Pool, address lpMPX_Pool) {
-        InitialCollateralInfo[] memory collaterals;
+        InitialCollateralInfo[] memory collaterals = new InitialCollateralInfo[](6);
         collaterals[0] = InitialCollateralInfo({
             tokenAddress: xusd,
             collateralKey: "xusd/usd"

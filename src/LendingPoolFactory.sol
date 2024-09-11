@@ -3,11 +3,13 @@ pragma solidity ^0.8.18;
 
 import { LendingPool } from './LendingPool.sol';
 import {
-    InitializeParam
+    InitializeParam,
+    PoolInfo
 } from "./LendingPoolStorage.sol";
 import { DIAOracleV2 } from "./oracle/DIAOracleV2Multiupdate.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Events } from './libraries/Events.sol';
+import {console} from 'forge-std/console.sol';
 
 contract LendingPoolFactory is Ownable {
 
@@ -16,12 +18,14 @@ contract LendingPoolFactory is Ownable {
 
     constructor() Ownable(msg.sender) {}
 
-    function createLendingPool(InitializeParam memory initializeParam) public onlyOwner returns(address) {
+    function createLendingPool(InitializeParam memory initializeParam) public onlyOwner returns(address poolAddress) {
         LendingPool pool = new LendingPool(initializeParam, owner());
-        _poolAddresses.push(address(pool));
+        poolAddress = address(pool);
         _pools.push(pool);
-
+        _poolAddresses.push(poolAddress);
+        
         emit Events.PoolAdded(address(pool), address(initializeParam.tokenConfig.principalToken));
+        
         return address(pool);
     }
 
@@ -31,5 +35,20 @@ contract LendingPoolFactory is Ownable {
 
     function getAllPoolAddresses() public view returns (address[] memory poolAddresses) {
         poolAddresses = _poolAddresses;
+    }
+
+    function getAllPoolsInfo() public view returns (PoolInfo[] memory) {
+        
+        uint256 poolsCount = _pools.length;
+        PoolInfo[] memory pools = new PoolInfo[](poolsCount);
+        for (uint i = 0; i < poolsCount; ) {
+            pools[i] = _pools[i].getPoolInfo();
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        return pools;
     }
 }
