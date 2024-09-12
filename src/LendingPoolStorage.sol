@@ -2,6 +2,7 @@
 pragma solidity ^0.8.18;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {FixedPointMathLib} from "@solady/utils/FixedPointMathLib.sol";
 import {InterestRateModel} from "./libraries/InterestRateModel.sol";
 import {AccountingLib} from './libraries/AccountingLib.sol';
 import {PriceLib} from './libraries/PriceLib.sol';
@@ -31,6 +32,24 @@ struct CollateralsData {
     uint256 loanToValue;
     uint256 liquidationThreshold;
     uint256 liquidationBonus;
+}
+
+struct PositionCollateral {
+    address token;
+    uint256 amount;
+    uint256 value; 
+}
+struct UserCollateralData {
+    PositionCollateral[] collaterals;
+    uint256 totalValue;
+}
+
+struct UserDebtPositionData {
+    uint256 collateralValue;
+    uint256 currentDebtValue;
+    uint256 liquidationPoint;
+    uint256 borrowCapacity;
+    uint256 availableToBorrow;
 }
 
 struct DebtPosition {
@@ -143,22 +162,29 @@ struct State {
 }
 
 abstract contract LendingPoolStorage {
+    using FixedPointMathLib for uint256;
     using AccountingLib for State;
+    using InterestRateModel for State;
     using PriceLib for State;
+    
     State internal state;
 
     function getPrincipalToken() public view returns (address principalToken) {
         principalToken = address(state.tokenConfig.principalToken);
     }
 
-    function getCollateralTokens() public view returns (address[] memory collateralTokens) {
-        IERC20[] memory contracts = state.tokenConfig.collateralTokens;
-        for (uint i = 0; i < contracts.length; ) {
-            collateralTokens[i] = address(contracts[i]);
+    function getCollateralTokens() public view returns (address[] memory) {
+        IERC20[] memory collateralTokens = state.tokenConfig.collateralTokens;
+        uint256 tokensCount = collateralTokens.length;
+        address[] memory addresses = new address[](tokensCount);
+        for (uint i = 0; i < tokensCount; ) {
+            addresses[i] = address(collateralTokens[i]);
             unchecked {
                 ++i;
             }
         }
+        
+        return addresses;
     }
 
     function getPoolStatistics() 
@@ -171,10 +197,11 @@ abstract contract LendingPoolStorage {
         ) 
     {
         IERC20[] memory collateralTokens = state.tokenConfig.collateralTokens;
+        uint256 tokensCount = collateralTokens.length;
 
         totalDeposits = state.getPrincipalValueInUSD(state.reserveData.totalDeposits);
         totalBorrows = state.getPrincipalValueInUSD(state.reserveData.totalBorrows);
-        for (uint i = 0; i < collateralTokens.length; ) {
+        for (uint i = 0; i < tokensCount; ) {
             address collateralToken = address(collateralTokens[i]);
             totalCollaterals += state.getCollateralValueInUSD(
                 collateralToken, 
@@ -232,5 +259,64 @@ abstract contract LendingPoolStorage {
             liquidationThreshold: state.riskConfig.liquidationThreshold,
             liquidationBonus: state.riskConfig.liquidationBonus
         });
+    }
+
+    function getUserCollateralData(address user) public view returns(UserCollateralData memory collateralData) {
+        DebtPosition storage position = state.positionData.debtPositions[user];
+        IERC20[] memory collateralTokens = state.tokenConfig.collateralTokens;
+        uint256 tokensCount = collateralTokens.length;
+        
+        uint256 totalValue;
+        PositionCollateral[] memory collaterals = new PositionCollateral[](tokensCount); 
+        for (uint i = 0; i < tokensCount; ) {
+            address tokenAddress = address(collateralTokens[i]);
+            uint256 collateralAmount = position.collateralAmount[tokenAddress];
+            uint256 collateralValue;
+            if (collateralAmount != 0) {
+                collateralValue = collateralAmount.mulWad(state.collateralPriceInUSD(tokenAddress));
+                totalValue += collateralValue;
+            }
+            
+            collaterals[i] = PositionCollateral({
+                token: tokenAddress,
+                amount: collateralAmount,
+                value: collateralValue
+            });
+
+            unchecked {
+                ++i;
+            }   
+        }
+        collateralData = UserCollateralData({
+            collaterals: collaterals,
+            totalValue: totalValue
+        });
+    } 
+
+    function getDebtPositionData(address user) public view returns(UserDebtPositionData memory positionData) {
+        DebtPosition storage position = state.positionData.debtPositions[user];
+        
+        positionData.currentDebtValue = state.getRepaidAmount(position.debtAmount).mulWadUp(state.principalPriceInUSD());
+
+        IERC20[] memory collateralTokens = state.tokenConfig.collateralTokens;
+        uint256 tokensCount = collateralTokens.length;
+        uint256 collateralValue;
+        for (uint i = 0; i < tokensCount; ) {
+            address tokenAddress = address(collateralTokens[i]);
+            uint256 collateralAmount = position.collateralAmount[tokenAddress];
+            if (collateralAmount != 0)
+                collateralValue += collateralAmount.mulWad(state.collateralPriceInUSD(tokenAddress));
+                
+            unchecked {
+                ++i;
+            }
+        }
+
+        if (collateralValue != 0) {
+            positionData.collateralValue = collateralValue;
+            positionData.liquidationPoint = collateralValue.mulWadUp(state.riskConfig.liquidationThreshold);
+            positionData.borrowCapacity = collateralValue.mulWadUp(state.riskConfig.loanToValue);
+            positionData.availableToBorrow = positionData.borrowCapacity - positionData.currentDebtValue;
+        }
     }
 }

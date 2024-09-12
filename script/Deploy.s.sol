@@ -31,7 +31,7 @@ contract DeployScript is Script {
     string constant TEST_MNEMONIC = "test test test test test test test test test test test junk";
     string constant TEST_CHAIN_NAME = "anvil";
 
-    bool mockTokenDeployed = true;
+    bool mockTokenDeployed = false;
 
     IERC20 wxfi;
     IERC20 weth;
@@ -70,7 +70,8 @@ contract DeployScript is Script {
             address poolFactoryAddress, 
             address oracleAddress,
             address[] memory mockTokens,
-            address[] memory pools
+            address[] memory pools,
+            address deployerAddress
         ) 
     {
         DIAOracleV2 oracle = new DIAOracleV2(); 
@@ -78,6 +79,7 @@ contract DeployScript is Script {
         setupMockTokens();
         setupLendingPools(poolFactory, oracle);        
 
+        deployerAddress = deployer;
         poolFactoryAddress = address(poolFactory);
         oracleAddress = address(oracle);
         
