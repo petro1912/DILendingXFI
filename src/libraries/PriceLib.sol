@@ -27,34 +27,28 @@ library PriceLib {
 
     function principalPriceInUSD(
         State storage state
-    ) external view returns(uint256) {
+    ) external view returns(uint256 collateralPrice) {
         
         string memory principalKey = state.tokenConfig.principalKey;
-        (uint256 collateralPrice, ) = state.tokenConfig.oracle.getValue(principalKey);
-        
-        return collateralPrice;
+        (collateralPrice, ) = state.tokenConfig.oracle.getValue(principalKey);
     }
 
     function collateralPriceInUSD(
         State storage state,
         address collateralToken
-    ) external view returns(uint256) {
+    ) external view returns(uint256 collateralPrice) {
         
         string memory collateralKey = state.tokenConfig.collateralsInfo[collateralToken].collateralKey;
-        (uint256 collateralPrice, ) = state.tokenConfig.oracle.getValue(collateralKey);
-
-        return collateralPrice;
+        (collateralPrice, ) = state.tokenConfig.oracle.getValue(collateralKey);
     }
 
     function collateralValueInUSD(
         State storage state,
         address collateralToken,
         uint256 amount
-    ) external view returns(uint256) {
+    ) external view returns(uint256 collateralPrice) {
         
         string memory collateralKey = state.tokenConfig.collateralsInfo[collateralToken].collateralKey;
-        (uint256 collateralPrice, ) = state.tokenConfig.oracle.getValue(collateralKey);
-
-        return collateralPrice.mulWad(amount) ;
+        (collateralPrice, ) = state.tokenConfig.oracle.getValue(collateralKey);
     }
 } 

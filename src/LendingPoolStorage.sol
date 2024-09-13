@@ -273,7 +273,7 @@ abstract contract LendingPoolStorage {
             uint256 collateralAmount = position.collateralAmount[tokenAddress];
             uint256 collateralValue;
             if (collateralAmount != 0) {
-                collateralValue = collateralAmount.mulWad(state.collateralPriceInUSD(tokenAddress));
+                collateralValue = collateralAmount.mulDiv(state.collateralPriceInUSD(tokenAddress), 1e8);
                 totalValue += collateralValue;
             }
             
@@ -296,7 +296,7 @@ abstract contract LendingPoolStorage {
     function getDebtPositionData(address user) public view returns(UserDebtPositionData memory positionData) {
         DebtPosition storage position = state.positionData.debtPositions[user];
         
-        positionData.currentDebtValue = state.getRepaidAmount(position.debtAmount).mulWadUp(state.principalPriceInUSD());
+        positionData.currentDebtValue = state.getRepaidAmount(position.debtAmount).mulDivUp(state.principalPriceInUSD(), 1e8);
 
         IERC20[] memory collateralTokens = state.tokenConfig.collateralTokens;
         uint256 tokensCount = collateralTokens.length;
@@ -305,7 +305,7 @@ abstract contract LendingPoolStorage {
             address tokenAddress = address(collateralTokens[i]);
             uint256 collateralAmount = position.collateralAmount[tokenAddress];
             if (collateralAmount != 0)
-                collateralValue += collateralAmount.mulWad(state.collateralPriceInUSD(tokenAddress));
+                collateralValue += collateralAmount.mulDiv(state.collateralPriceInUSD(tokenAddress), 1e8);
                 
             unchecked {
                 ++i;

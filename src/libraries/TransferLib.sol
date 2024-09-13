@@ -10,16 +10,18 @@ library TransferLib {
 
     function transferPrincipal(State storage state, address _from, address _to, uint256 _amount) external {
         _validateTransfer(_from, _to, _amount);
+        _validateAllowance(state.tokenConfig.principalToken, _from, address(this), _amount);
         state.tokenConfig.principalToken.safeTransferFrom(_from, _to, _amount);
     }
 
     function transferPrincipal(State storage state, address _to, uint256 _amount) external {
         _validateTransfer(_to, _amount);
-        state.tokenConfig.principalToken.safeTransferFrom(address(this), _to, _amount);
+        state.tokenConfig.principalToken.safeTransfer(_to, _amount);
     }
 
     function transferCollateral(State storage state, address _collateralToken, address _from, address _to, uint256 _amount) external {
         _validateTransfer(_from, _to, _amount);
+        _validateAllowance(IERC20(_collateralToken), _from, address(this), _amount);
         _validateCollateralToken(state, _collateralToken);
         IERC20(_collateralToken).safeTransferFrom(_from, _to, _amount);
     }
@@ -27,7 +29,7 @@ library TransferLib {
     function transferCollateral(State storage state, address _collateralToken, address _to, uint256 _amount) external {
         _validateTransfer(_to, _amount);
         _validateCollateralToken(state, _collateralToken);
-        IERC20(_collateralToken).safeTransferFrom(address(this), _to, _amount);
+        IERC20(_collateralToken).safeTransfer(_to, _amount);
     }
 
     function _validateTransfer(address _from,  address _to, uint256 _amount) internal pure {
@@ -42,5 +44,9 @@ library TransferLib {
 
     function _validateCollateralToken(State storage state, address _collateralToken) internal view {
         require(state.tokenConfig.collateralsInfo[_collateralToken].whitelisted, "Not Supported Token");
+    }
+
+    function _validateAllowance(IERC20 token, address owner, address spender, uint256 _amount) internal view {
+        require(token.allowance(owner, spender) >= _amount, "Not enough Approved amount");
     }
 }

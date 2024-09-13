@@ -31,7 +31,7 @@ contract DeployScript is Script {
     string constant TEST_MNEMONIC = "test test test test test test test test test test test junk";
     string constant TEST_CHAIN_NAME = "anvil";
 
-    bool mockTokenDeployed = false;
+    bool mockTokenDeployed = true;
 
     IERC20 wxfi;
     IERC20 weth;
@@ -74,7 +74,8 @@ contract DeployScript is Script {
             address deployerAddress
         ) 
     {
-        DIAOracleV2 oracle = new DIAOracleV2(); 
+        DIAOracleV2 oracle = setupMockOracle();
+        
         LendingPoolFactory poolFactory = new LendingPoolFactory();
         setupMockTokens();
         setupLendingPools(poolFactory, oracle);        
@@ -99,19 +100,26 @@ contract DeployScript is Script {
         pools = poolFactory.getAllPoolAddresses();
     }
 
+    function setupMockOracle() public returns(DIAOracleV2 oracle) {
+        if (!mockTokenDeployed)
+            oracle = new DIAOracleV2(); 
+        else
+            oracle = DIAOracleV2(address(0x3D63c50AD04DD5aE394CAB562b7691DD5de7CF6f)); 
+    }
+
     function setupMockTokens() public {
         if (mockTokenDeployed) {
-            wxfi = IERC20(address(0xA4899D35897033b927acFCf422bc745916139776));
-            weth = IERC20(address(0xf953b3A269d80e3eB0F2947630Da976B896A8C5b));
-            xft = IERC20(address(0xAA292E8611aDF267e563f334Ee42320aC96D0463));
-            empx = IERC20(address(0x5c74c94173F05dA1720953407cbb920F3DF9f887));
-            exe = IERC20(address(0x720472c8ce72c2A2D711333e064ABD3E6BbEAdd3));
-            xusd = IERC20(address(0xe8D2A1E88c91DCd5433208d4152Cc4F399a7e91d));
-            usdt = IERC20(address(0x5067457698Fd6Fa1C6964e416b3f42713513B3dD));
-            usdc = IERC20(address(0x18E317A7D70d8fBf8e6E893616b52390EbBdb629));
-            lpxfi = IERC20(address(0x4b6aB5F819A515382B0dEB6935D793817bB4af28));
-            lpusd = IERC20(address(0xCace1b78160AE76398F486c8a18044da0d66d86D));
-            lpmpx = IERC20(address(0xD5ac451B0c50B9476107823Af206eD814a2e2580));
+            wxfi = IERC20(address(0x1c9fD50dF7a4f066884b58A05D91e4b55005876A));
+            weth = IERC20(address(0x0fe4223AD99dF788A6Dcad148eB4086E6389cEB6));
+            xft = IERC20(address(0x71a0b8A2245A9770A4D887cE1E4eCc6C1d4FF28c));
+            empx = IERC20(address(0xb185E9f6531BA9877741022C92CE858cDCc5760E));
+            exe = IERC20(address(0xAe120F0df055428E45b264E7794A18c54a2a3fAF));
+            xusd = IERC20(address(0x193521C8934bCF3473453AF4321911E7A89E0E12));
+            usdt = IERC20(address(0x9Fcca440F19c62CDF7f973eB6DDF218B15d4C71D));
+            usdc = IERC20(address(0x01E21d7B8c39dc4C764c19b308Bd8b14B1ba139E));
+            lpxfi = IERC20(address(0x3C1Cb427D20F15563aDa8C249E71db76d7183B6c));
+            lpusd = IERC20(address(0x1343248Cbd4e291C6979e70a138f4c774e902561));
+            lpmpx = IERC20(address(0x22a9B82A6c3D2BFB68F324B2e8367f346Dd6f32a));
         } else {
             wxfi = new WXFI();
             weth = new WETH();

@@ -114,7 +114,7 @@ library AccountingLib {
     }    
 
     function getCollateralValueInUSD(State storage state, address collateralToken, uint256 amount) external view returns (uint256 usdValue) {
-        return state.collateralPriceInUSD(collateralToken).mulWad(amount);
+        return amount.mulDiv(state.collateralPriceInUSD(collateralToken), 1e8);
     }
 
     function getPrincipalValueInUSD(State storage state, uint256 repaidAmount) external view returns(uint256 usdValue) {
@@ -159,14 +159,14 @@ library AccountingLib {
         uint256 amount = position.collateralAmount[collateralToken];    
         if (amount != 0) {
             uint256 collateralPrice = state.collateralPriceInUSD(collateralToken);
-            usdValue = amount.mulWad(collateralPrice);
+            usdValue = amount.mulDiv(collateralPrice, 1e8);
         }
     }
 
     function _principalValueInUSD(State storage state, uint256 repaidAmount) internal view returns(uint256 usdValue) {
         if (repaidAmount != 0) {
             uint256 principalPrice = state.principalPriceInUSD();
-            usdValue = repaidAmount.mulWad(principalPrice);
+            usdValue = repaidAmount.mulDiv(principalPrice, 1e8);
         }
     }    
     
