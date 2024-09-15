@@ -104,22 +104,22 @@ contract DeployScript is Script {
         if (!mockTokenDeployed)
             oracle = new DIAOracleV2(); 
         else
-            oracle = DIAOracleV2(address(0x3D63c50AD04DD5aE394CAB562b7691DD5de7CF6f)); 
+            oracle = DIAOracleV2(address(0xa513E6E4b8f2a923D98304ec87F64353C4D5C853)); 
     }
 
     function setupMockTokens() public {
         if (mockTokenDeployed) {
-            wxfi = IERC20(address(0x1c9fD50dF7a4f066884b58A05D91e4b55005876A));
-            weth = IERC20(address(0x0fe4223AD99dF788A6Dcad148eB4086E6389cEB6));
-            xft = IERC20(address(0x71a0b8A2245A9770A4D887cE1E4eCc6C1d4FF28c));
-            empx = IERC20(address(0xb185E9f6531BA9877741022C92CE858cDCc5760E));
-            exe = IERC20(address(0xAe120F0df055428E45b264E7794A18c54a2a3fAF));
-            xusd = IERC20(address(0x193521C8934bCF3473453AF4321911E7A89E0E12));
-            usdt = IERC20(address(0x9Fcca440F19c62CDF7f973eB6DDF218B15d4C71D));
-            usdc = IERC20(address(0x01E21d7B8c39dc4C764c19b308Bd8b14B1ba139E));
-            lpxfi = IERC20(address(0x3C1Cb427D20F15563aDa8C249E71db76d7183B6c));
-            lpusd = IERC20(address(0x1343248Cbd4e291C6979e70a138f4c774e902561));
-            lpmpx = IERC20(address(0x22a9B82A6c3D2BFB68F324B2e8367f346Dd6f32a));
+            wxfi = IERC20(address(0x8A791620dd6260079BF849Dc5567aDC3F2FdC318));
+            weth = IERC20(address(0x610178dA211FEF7D417bC0e6FeD39F05609AD788));
+            xft = IERC20(address(0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e));
+            empx = IERC20(address(0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0));
+            exe = IERC20(address(0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82));
+            xusd = IERC20(address(0x9A676e781A523b5d0C0e43731313A708CB607508));
+            usdt = IERC20(address(0x0B306BF915C4d645ff596e518fAf3F9669b97016));
+            usdc = IERC20(address(0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1));
+            lpxfi = IERC20(address(0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE));
+            lpusd = IERC20(address(0x68B1D87F95878fE05B998F19b66F4baba5De1aed));
+            lpmpx = IERC20(address(0x3Aa5ebB10DC797CAC828524e59A333d0A371443c));
         } else {
             wxfi = new WXFI();
             weth = new WETH();

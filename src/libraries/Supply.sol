@@ -10,12 +10,14 @@ import {
 } from "../LendingPoolStorage.sol";
 import { InterestRateModel } from "./InterestRateModel.sol";
 import { Events } from "./Events.sol";
+import { AccountingLib } from "./AccountingLib.sol";
 import { TransferLib } from "./TransferLib.sol";
 
 library Supply {
 
     using TransferLib for State;
     using InterestRateModel for State;
+    using AccountingLib for State;
     using FixedPointMathLib for uint256;
 
     function supply(State storage state, uint256 _cashAmount, uint256 _minCredit) external returns(uint256 credit) {
@@ -43,28 +45,32 @@ library Supply {
         emit Events.DepositPrincipal(msg.sender, _cashAmount, credit);
     }
 
-    function withrawSupply(State storage state, uint256 _creditAmount) external returns (uint256 cash) {
-        require(_creditAmount > 0, "Invalid deposit amount");
+    function withrawSupply(State storage state, uint256 _cashAmount) external returns (uint256 creditAmount) {
+        require(_cashAmount > 0, "Invalid deposit amount");
 
         // Update interest rates based on new liquidity
         state.updateInterestRates();
         
         CreditPosition storage position = state.positionData.creditPositions[msg.sender];
 
-        cash = state.getCashAmount(_creditAmount);
-        uint256 withdrawalCash = position.depositAmount.mulDiv(_creditAmount, position.creditAmount);
+        creditAmount = state.getCreditAmount(_cashAmount);
+        uint256 withdrawalCash = position.depositAmount.mulDiv(creditAmount, position.creditAmount);
 
         state.reserveData.totalDeposits -= withdrawalCash;
-        state.positionData.totalCredit -= _creditAmount;
-        state.reserveData.totalWithdrawals += cash;
+        state.positionData.totalCredit -= creditAmount;
+        state.reserveData.totalWithdrawals += _cashAmount;
         
         position.depositAmount -= withdrawalCash;
-        position.creditAmount -= _creditAmount;
-        position.withdrawAmount += cash;        
+        position.creditAmount -= creditAmount;
+        position.withdrawAmount += _cashAmount; 
 
-        state.transferPrincipal(msg.sender, cash);
+        uint256 earnedAmount = _cashAmount - withdrawalCash;
+        position.earnedAmount += _cashAmount - withdrawalCash;
+        position.earnedValue += state.getPrincipalValueInUSD(earnedAmount);       
 
-        emit Events.WithdrawPrincipal(msg.sender, cash, _creditAmount);
+        state.transferPrincipal(msg.sender, _cashAmount);
+
+        emit Events.WithdrawPrincipal(msg.sender, _cashAmount, creditAmount);
     }
 
     function withrawAllSupply(State storage state) external returns (uint256 cash, uint256 totalEarned) {
@@ -83,6 +89,10 @@ library Supply {
         position.depositAmount = 0;
         position.creditAmount = 0;
         position.withdrawAmount += cash;
+
+        uint256 earnedAmount = cash - position.depositAmount;
+        position.earnedAmount += earnedAmount;
+        position.earnedValue += state.getPrincipalValueInUSD(earnedAmount);
         
         totalEarned = position.withdrawAmount - position.totalDeposit;
 

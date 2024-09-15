@@ -4,6 +4,8 @@ pragma solidity ^0.8.18;
 import { LendingPool } from './LendingPool.sol';
 import {
     InitializeParam,
+    UserCreditPositionData,
+    UserDebtPositionData,
     PoolInfo
 } from "./LendingPoolStorage.sol";
 import { DIAOracleV2 } from "./oracle/DIAOracleV2Multiupdate.sol";
@@ -50,5 +52,27 @@ contract LendingPoolFactory is Ownable {
         }
 
         return pools;
+    }
+
+    function getUserCreditPositions(address user) public view returns (UserCreditPositionData[] memory creditPositions) {
+        uint256 poolsCount = _pools.length;
+        creditPositions = new UserCreditPositionData[](poolsCount);
+        for (uint i = 0; i < poolsCount; ) {
+            creditPositions[i] = _pools[i].getLiquidityPositionData(user);
+            unchecked {
+                ++i;
+            }
+        }    
+    }
+
+    function getUserDebtPositions(address user) public view returns (UserDebtPositionData[] memory debtPositions) {
+        uint256 poolsCount = _pools.length;
+        debtPositions = new UserDebtPositionData[](poolsCount);
+        for (uint i = 0; i < poolsCount; ) {
+            debtPositions[i] = _pools[i].getDebtPositionData(user);            
+            unchecked {
+                ++i;
+            }
+        }    
     }
 }

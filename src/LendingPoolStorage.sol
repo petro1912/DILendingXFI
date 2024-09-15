@@ -44,12 +44,28 @@ struct UserCollateralData {
     uint256 totalValue;
 }
 
+struct UserCreditPositionData {
+    address poolAddress;
+    address tokenAddress;
+    uint256 liquidityAmount;
+    uint256 liquidityValue;
+    uint256 cashAmount;
+    uint256 cashValue;
+    uint256 earnedAmount;
+    uint256 earnedValue;
+}
+
 struct UserDebtPositionData {
+    address poolAddress;
+    address tokenAddress;
+    uint256 borrowAmount;
+    uint256 currentDebtAmount;
     uint256 collateralValue;
     uint256 currentDebtValue;
     uint256 liquidationPoint;
     uint256 borrowCapacity;
-    uint256 availableToBorrow;
+    uint256 availableToBorrowAmount;
+    uint256 availableToBorrowValue;
 }
 
 struct DebtPosition {
@@ -65,6 +81,8 @@ struct CreditPosition {
     uint256 withdrawAmount;
     uint256 creditAmount;
     uint256 totalDeposit;
+    uint256 earnedAmount;
+    uint256 earnedValue;
 }
 
 struct ReserveData {
@@ -293,10 +311,37 @@ abstract contract LendingPoolStorage {
         });
     } 
 
+    function getLiquidityPositionData(address user) public view returns(UserCreditPositionData memory positionData) {
+        CreditPosition storage position = state.positionData.creditPositions[user];
+        
+        uint256 price = state.principalPriceInUSD();
+        uint256 liquidityAmount = position.depositAmount;
+        // if (liquidityAmount != 0) {
+            uint256 liquidityValue = position.depositAmount.mulDiv(price, 1e8);
+            uint256 cashAmount = state.getCashAmount(position.creditAmount);
+            uint256 cashValue = cashAmount.mulDiv(price, 1e8);
+            uint256 earnedAmount = position.earnedAmount + cashAmount - liquidityAmount;
+            uint256 earnedValue = position.earnedValue + cashValue - liquidityValue;
+
+            positionData = UserCreditPositionData({
+                poolAddress: address(this),
+                tokenAddress: address(state.tokenConfig.principalToken),
+                liquidityAmount: liquidityAmount,
+                liquidityValue: liquidityValue,
+                cashAmount: cashAmount,
+                cashValue: cashValue,
+                earnedAmount: earnedAmount,
+                earnedValue: earnedValue
+            });
+        // }
+    }
+
     function getDebtPositionData(address user) public view returns(UserDebtPositionData memory positionData) {
         DebtPosition storage position = state.positionData.debtPositions[user];
-        
-        positionData.currentDebtValue = state.getRepaidAmount(position.debtAmount).mulDivUp(state.principalPriceInUSD(), 1e8);
+        uint256 principalPrice = state.principalPriceInUSD();
+        positionData.borrowAmount = position.borrowAmount;
+        positionData.currentDebtAmount = state.getRepaidAmount(position.debtAmount);
+        positionData.currentDebtValue = state.getRepaidAmount(position.debtAmount).mulDivUp(principalPrice, 1e8);
 
         IERC20[] memory collateralTokens = state.tokenConfig.collateralTokens;
         uint256 tokensCount = collateralTokens.length;
@@ -312,11 +357,14 @@ abstract contract LendingPoolStorage {
             }
         }
 
-        if (collateralValue != 0) {
+        // if (collateralValue != 0) {
+            positionData.poolAddress = address(this);
+            positionData.tokenAddress = address(state.tokenConfig.principalToken);
             positionData.collateralValue = collateralValue;
-            positionData.liquidationPoint = collateralValue.mulWadUp(state.riskConfig.liquidationThreshold);
-            positionData.borrowCapacity = collateralValue.mulWadUp(state.riskConfig.loanToValue);
-            positionData.availableToBorrow = positionData.borrowCapacity - positionData.currentDebtValue;
-        }
+            positionData.liquidationPoint = collateralValue.mulWad(state.riskConfig.liquidationThreshold);
+            positionData.borrowCapacity = collateralValue.mulWad(state.riskConfig.loanToValue);
+            positionData.availableToBorrowAmount = principalPrice == 0? 0 : (positionData.borrowCapacity - positionData.currentDebtValue).mulDiv(principalPrice, 1e8);
+            positionData.availableToBorrowValue = positionData.borrowCapacity - positionData.currentDebtValue;
+        // }
     }
 }
