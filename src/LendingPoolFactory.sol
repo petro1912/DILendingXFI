@@ -69,7 +69,7 @@ contract LendingPoolFactory is Ownable {
         uint256 poolsCount = _pools.length;
         debtPositions = new UserDebtPositionData[](poolsCount);
         for (uint i = 0; i < poolsCount; ) {
-            debtPositions[i] = _pools[i].getDebtPositionData(user);            
+            debtPositions[i] = _pools[i].getDebtPositionData(user);
             unchecked {
                 ++i;
             }

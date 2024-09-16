@@ -18,16 +18,17 @@ library InterestRateModel {
 
         uint256 utilizationRate = _calculateUtilizationRate(reserveData.totalBorrows, reserveData.totalDeposits);
         uint256 borrowRate = _calculateBorrowRate(state, utilizationRate);
+        uint256 liquidityRate = borrowRate.mulWad(utilizationRate).mulWad(WAD - state.rateConfig.reserveFactor);
         
         rateData.utilizationRate = utilizationRate;
         rateData.borrowRate = borrowRate;
-        rateData.liquidityRate = borrowRate.mulWad(utilizationRate).mulWad(WAD - state.rateConfig.reserveFactor);
+        rateData.liquidityRate = liquidityRate;
 
         // update Liquidity and Debt Index
-        uint256 elapsed = block.timestamp - rateData.lastUpdated;
-        if (elapsed > 0) {
-            rateData.debtIndex = rateData.debtIndex.mulWad((WAD + rateData.borrowRate) * elapsed) / YEAR;
-            rateData.liquidityIndex = rateData.liquidityIndex.mulWad((WAD + rateData.liquidityRate) * elapsed) / YEAR;      
+        if (block.timestamp > rateData.lastUpdated) {
+            uint256 elapsed = block.timestamp - rateData.lastUpdated;
+            rateData.debtIndex = rateData.debtIndex.mulWad(WAD + borrowRate.mulDiv(elapsed, YEAR));
+            rateData.liquidityIndex = rateData.liquidityIndex.mulWad(WAD + liquidityRate.mulDiv(elapsed, YEAR));      
             rateData.lastUpdated = block.timestamp;            
         }
     }
@@ -43,13 +44,23 @@ library InterestRateModel {
         uint256 liquidityRate = borrowRate.mulWad(utilizationRate).mulWad(WAD - state.rateConfig.reserveFactor);
 
         // update Liquidity and Debt Index
-        uint256 elapsed = block.timestamp - rateData.lastUpdated;
-        if (elapsed > 0) {
-            debtIndex = rateData.debtIndex.mulWad((WAD + borrowRate) * elapsed) / YEAR;
-            creditIndex = rateData.liquidityIndex.mulWad((WAD + liquidityRate) * elapsed) / YEAR;                  
+        if (block.timestamp > rateData.lastUpdated) {
+            uint256 elapsed = block.timestamp - rateData.lastUpdated;
+            debtIndex = rateData.debtIndex.mulWad(WAD + borrowRate.mulDiv(elapsed, YEAR));
+            creditIndex = rateData.liquidityIndex.mulWad(WAD + liquidityRate.mulDiv(elapsed, YEAR));        
         }
     }
     
+    function calcUpdatedRates(State storage state) external view returns (uint256 utilizationRate, uint256 liquidityRate, uint256 borrowRate) {
+        
+        RateData storage rateData = state.rateData;
+        ReserveData storage reserveData = state.reserveData;
+
+        utilizationRate = _calculateUtilizationRate(reserveData.totalBorrows, reserveData.totalDeposits);
+        borrowRate = _calculateBorrowRate(state, utilizationRate);
+        
+        liquidityRate = borrowRate.mulWad(utilizationRate).mulWad(WAD - state.rateConfig.reserveFactor);
+    }    
     
     function _calculateUtilizationRate(uint256 borrows, uint256 deposits) internal pure returns(uint256) {
         if (borrows == 0)
@@ -82,7 +93,7 @@ library InterestRateModel {
     }
 
     function getCashAmount(State storage state, uint256 credit) external view returns(uint256 cash) {
-        cash = credit.mulWad(state.rateData.liquidityIndex);
+        cash = credit.mulWadUp(state.rateData.liquidityIndex);
     }
 
     function getRepaidAmount(State storage state, uint256 debt) external view returns(uint256 amount) {

@@ -15,6 +15,7 @@ struct PoolInfo {
     // address[] collateralTokens;
     uint256 totalDeposits;
     uint256 totalBorrows;
+    uint256 totalEarnings;
     uint256 totalCollaterals;
     uint256 utilizationRate;
     uint256 borrowAPR;
@@ -59,8 +60,9 @@ struct UserDebtPositionData {
     address poolAddress;
     address tokenAddress;
     uint256 borrowAmount;
-    uint256 currentDebtAmount;
+    uint256 borrowValue;
     uint256 collateralValue;
+    uint256 currentDebtAmount;
     uint256 currentDebtValue;
     uint256 liquidationPoint;
     uint256 borrowCapacity;
@@ -211,7 +213,8 @@ abstract contract LendingPoolStorage {
         returns (
             uint256 totalDeposits, 
             uint256 totalCollaterals, 
-            uint256 totalBorrows
+            uint256 totalBorrows,
+            uint256 totalEarnings
         ) 
     {
         IERC20[] memory collateralTokens = state.tokenConfig.collateralTokens;
@@ -219,6 +222,14 @@ abstract contract LendingPoolStorage {
 
         totalDeposits = state.getPrincipalValueInUSD(state.reserveData.totalDeposits);
         totalBorrows = state.getPrincipalValueInUSD(state.reserveData.totalBorrows);
+        uint256 totalCredit = state.getPrincipalValueInUSD(
+                                state.getCashAmount(state.reserveData.totalCredit)
+                            );
+
+        if (totalCredit > totalDeposits) {
+            totalEarnings = totalCredit - totalDeposits;
+        }
+
         for (uint i = 0; i < tokensCount; ) {
             address collateralToken = address(collateralTokens[i]);
             totalCollaterals += state.getCollateralValueInUSD(
@@ -235,8 +246,15 @@ abstract contract LendingPoolStorage {
         (
             uint256 totalDeposits, 
             uint256 totalCollaterals, 
-            uint256 totalBorrows
+            uint256 totalBorrows,
+            uint256 totalEarnings
         ) = getPoolStatistics();
+
+        (
+            uint256 utilizationRate, 
+            uint256 liquidityRate, 
+            uint256 borrowRate 
+        ) = state.calcUpdatedRates();
 
         info = PoolInfo({
             poolAddress: address(this),
@@ -245,9 +263,10 @@ abstract contract LendingPoolStorage {
             totalDeposits: totalDeposits,
             totalBorrows: totalBorrows,
             totalCollaterals: totalCollaterals,
-            utilizationRate: state.rateData.utilizationRate,
-            borrowAPR: state.rateData.borrowRate,
-            earnAPR: state.rateData.liquidityRate
+            totalEarnings: totalEarnings, 
+            utilizationRate: utilizationRate,
+            borrowAPR: borrowRate,
+            earnAPR: liquidityRate
         });
     }
 
@@ -319,9 +338,10 @@ abstract contract LendingPoolStorage {
         // if (liquidityAmount != 0) {
             uint256 liquidityValue = position.depositAmount.mulDiv(price, 1e8);
             uint256 cashAmount = state.getCashAmount(position.creditAmount);
-            uint256 cashValue = cashAmount.mulDiv(price, 1e8);
-            uint256 earnedAmount = position.earnedAmount + cashAmount - liquidityAmount;
-            uint256 earnedValue = position.earnedValue + cashValue - liquidityValue;
+            uint256 cashValue = cashAmount.mulDivUp(price, 1e8);
+
+            uint256 earnedAmount = cashAmount > liquidityAmount? position.earnedAmount + cashAmount - liquidityAmount : position.earnedAmount;
+            uint256 earnedValue = cashValue > liquidityValue? position.earnedValue + cashValue - liquidityValue : position.earnedValue;
 
             positionData = UserCreditPositionData({
                 poolAddress: address(this),
@@ -340,6 +360,7 @@ abstract contract LendingPoolStorage {
         DebtPosition storage position = state.positionData.debtPositions[user];
         uint256 principalPrice = state.principalPriceInUSD();
         positionData.borrowAmount = position.borrowAmount;
+        positionData.borrowValue = position.borrowAmount.mulDiv(principalPrice, 1e8);
         positionData.currentDebtAmount = state.getRepaidAmount(position.debtAmount);
         positionData.currentDebtValue = state.getRepaidAmount(position.debtAmount).mulDivUp(principalPrice, 1e8);
 
@@ -363,8 +384,11 @@ abstract contract LendingPoolStorage {
             positionData.collateralValue = collateralValue;
             positionData.liquidationPoint = collateralValue.mulWad(state.riskConfig.liquidationThreshold);
             positionData.borrowCapacity = collateralValue.mulWad(state.riskConfig.loanToValue);
-            positionData.availableToBorrowAmount = principalPrice == 0? 0 : (positionData.borrowCapacity - positionData.currentDebtValue).mulDiv(principalPrice, 1e8);
-            positionData.availableToBorrowValue = positionData.borrowCapacity - positionData.currentDebtValue;
+            if (positionData.borrowCapacity > positionData.currentDebtValue) {
+                positionData.availableToBorrowAmount = principalPrice == 0? 0 : (positionData.borrowCapacity - positionData.currentDebtValue).mulDiv(1e8, principalPrice);
+                positionData.availableToBorrowValue = positionData.borrowCapacity - positionData.currentDebtValue;
+            }
+            
         // }
     }
 }
