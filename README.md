@@ -1,11 +1,9 @@
 <div align="center">
 <h1 style="border-bottom: none">
     <b><a href="https://dilending.portfolio-as.com">DI Lending</a></b><br />
-    Innovative Lending Pool in web3.
-    <br>
 </h1>
 <a href="https://Dexis.app/download">
-    <img alt="logo" src="https://github.com/petro1912/DILendingXFI-Frontend/blob/main/public/images/logo.png" style="width: 100%">
+    <img alt="logo" src="https://github.com/petro1912/DILendingXFI-Frontend/blob/main/public/images/logo.png" style="width: 240px">
 </a>
 
 ## DILending Protocol
