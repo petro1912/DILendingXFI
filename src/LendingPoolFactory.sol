@@ -17,10 +17,14 @@ contract LendingPoolFactory is Ownable {
 
     LendingPool[] private _pools;
     address[] private _poolAddresses;
+    mapping(address principalToken => address pool) activePools;
 
     constructor() Ownable(msg.sender) {}
 
     function createLendingPool(InitializeParam memory initializeParam) public onlyOwner returns(address poolAddress) {
+        address principalToken = address(initializeParam.tokenConfig.principalToken);
+        require(activePools[principalToken] == address(0), "Lending Pool already exists!");
+
         LendingPool pool = new LendingPool(initializeParam, owner());
         poolAddress = address(pool);
         _pools.push(pool);
