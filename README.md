@@ -1,3 +1,13 @@
+<div align="center">
+<h1 style="border-bottom: none">
+    <b><a href="https://dilending.portfolio-as.com">DI Lending</a></b><br />
+    Innovative Lending Pool in web3.
+    <br>
+</h1>
+<a href="https://Dexis.app/download">
+    <img alt="logo" src="https://github.com/petro1912/DILendingXFI-Frontend/blob/main/public/images/logo.png" style="width: 100%">
+</a>
+
 ## DILending Protocol
 “DI Lending” Protocol is the DeFI Lending protocol which puts the idle liquidity (principal) and collateral assets into other external staking/yield farming protocols to maximize capital utilization and revenue in the pool.
 
