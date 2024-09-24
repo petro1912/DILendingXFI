@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import {State, RateConfig, RateData, ReserveData} from "../LendingPoolStorage.sol";
+import {State, RateConfig, RateData, ReserveData} from "../LendingPoolState.sol";
 import {FixedPointMathLib} from "@solady/utils/FixedPointMathLib.sol";
 
 
@@ -9,7 +9,7 @@ library InterestRateModel {
     using FixedPointMathLib for uint256;
     
     uint256 constant YEAR = 365 * 86400;   
-    uint256 public constant WAD = 1e18;  
+    uint256 public constant WAD = 1e18;
 
     function updateInterestRates(State storage state) external {
         
@@ -52,8 +52,6 @@ library InterestRateModel {
     }
     
     function calcUpdatedRates(State storage state) external view returns (uint256 utilizationRate, uint256 liquidityRate, uint256 borrowRate) {
-        
-        RateData storage rateData = state.rateData;
         ReserveData storage reserveData = state.reserveData;
 
         utilizationRate = _calculateUtilizationRate(reserveData.totalBorrows, reserveData.totalDeposits);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import { LendingPoolStorage, State, ReserveData } from "../LendingPoolStorage.sol";
+import { State, ReserveData } from "../LendingPoolState.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {FixedPointMathLib} from "@solady/utils/FixedPointMathLib.sol";
 
@@ -46,9 +46,10 @@ library PriceLib {
         State storage state,
         address collateralToken,
         uint256 amount
-    ) external view returns(uint256 collateralPrice) {
+    ) external view returns(uint256 valueInUSD) {
         
         string memory collateralKey = state.tokenConfig.collateralsInfo[collateralToken].collateralKey;
-        (collateralPrice, ) = state.tokenConfig.oracle.getValue(collateralKey);
+        (uint256 collateralPrice, ) = state.tokenConfig.oracle.getValue(collateralKey);
+        valueInUSD = amount.mulDiv(collateralPrice, 1e8);
     }
 } 

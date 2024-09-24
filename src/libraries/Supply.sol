@@ -3,11 +3,10 @@ pragma solidity ^0.8.18;
 
 import {FixedPointMathLib} from "@solady/utils/FixedPointMathLib.sol";
 import {
-    LendingPoolStorage, 
     CreditPosition, 
     State, 
     ReserveData
-} from "../LendingPoolStorage.sol";
+} from "../LendingPoolState.sol";
 import { InterestRateModel } from "./InterestRateModel.sol";
 import { Events } from "./Events.sol";
 import { AccountingLib } from "./AccountingLib.sol";

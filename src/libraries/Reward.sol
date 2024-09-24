@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import {LendingPoolStorage, State, CreditPosition, ReserveData} from "../LendingPoolStorage.sol";
+import {State, CreditPosition, ReserveData} from "../LendingPoolState.sol";
 import {InterestRateModel} from "./InterestRateModel.sol";
 import {FixedPointMathLib} from "@solady/utils/FixedPointMathLib.sol";
 

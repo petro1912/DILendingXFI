@@ -12,7 +12,11 @@ import {
     FeeConfig,
     RiskConfig,
     RateConfig
-} from "@src/LendingPoolStorage.sol";
+} from "@src/LendingPoolState.sol";
+
+import { IInvestmentModule } from "@src/interfaces/IInvestmentModule.sol";
+import { InvestmentModule } from "@src/invest/InvestmentModule.sol";
+import {ILendingPool} from "@src/interfaces/ILendingPool.sol";
 import { WXFI } from "@src/mock/tokens/WXFI.sol";
 import { WETH }  from "@src/mock/tokens/WETH.sol";
 import { XFT }  from "@src/mock/tokens/XFT.sol";
@@ -26,10 +30,11 @@ import { lpUSD }  from "@src/mock/tokens/lpUSD.sol";
 import { lpMPX }  from "@src/mock/tokens/lpMPX.sol";
 
 import {console} from 'forge-std/console.sol';
+
 contract DeployScript is Script {
 
     string constant TEST_MNEMONIC = "test test test test test test test test test test test junk";
-    string constant TEST_CHAIN_NAME = "anvil";
+    string constant TEST_CHAIN_NAME = "CrossFi Testnet";
 
     bool mockTokenDeployed = true;
 
@@ -51,13 +56,14 @@ contract DeployScript is Script {
     function setUp() public {}
 
     modifier parseEnv() {
-        deployer = vm.addr(vm.envOr("DEPLOYER_PRIVATE_KEY", vm.deriveKey(TEST_MNEMONIC, 0)));
+        console.log(vm.envOr("PRIVATE_KEY", vm.deriveKey(TEST_MNEMONIC, 0)));
+        deployer = vm.addr(vm.envOr("PRIVATE_KEY", vm.deriveKey(TEST_MNEMONIC, 0)));
         chainName = vm.envOr("CHAIN_NAME", TEST_CHAIN_NAME);
         _;
     }
     
     modifier broadcast() {
-        vm.startBroadcast(vm.deriveKey(TEST_MNEMONIC, 0));
+        vm.startBroadcast(deployer);
         _;
         vm.stopBroadcast();
     }
@@ -69,20 +75,30 @@ contract DeployScript is Script {
         returns (
             address poolFactoryAddress, 
             address oracleAddress,
+            address investAddress,
             address[] memory mockTokens,
             address[] memory pools,
             address deployerAddress
         ) 
     {
         DIAOracleV2 oracle = setupMockOracle();
+        IInvestmentModule investModule = setupInvestmentModule(); 
         
         LendingPoolFactory poolFactory = new LendingPoolFactory();
         setupMockTokens();
-        setupLendingPools(poolFactory, oracle);        
+        pools = new address[](5);
+        (
+            pools[0],
+            pools[1],
+            pools[2],
+            pools[3],
+            pools[4]
+        ) = setupLendingPools(poolFactory, oracle, investModule);        
 
         deployerAddress = deployer;
         poolFactoryAddress = address(poolFactory);
         oracleAddress = address(oracle);
+        investAddress = address(investModule);
         
         mockTokens = new address[](11);
         mockTokens[0] = address(wxfi);
@@ -96,8 +112,6 @@ contract DeployScript is Script {
         mockTokens[8] = address(lpxfi);
         mockTokens[9] = address(lpusd);
         mockTokens[10] = address(lpmpx);  
-        
-        pools = poolFactory.getAllPoolAddresses();
     }
 
     function setupMockOracle() public returns(DIAOracleV2 oracle) {
@@ -105,6 +119,13 @@ contract DeployScript is Script {
             oracle = new DIAOracleV2(); 
         else
             oracle = DIAOracleV2(address(0xa513E6E4b8f2a923D98304ec87F64353C4D5C853)); 
+    }
+
+    function setupInvestmentModule() public returns(IInvestmentModule investModule) {
+        if (!mockTokenDeployed)
+            investModule = new InvestmentModule(); 
+        else
+            investModule = IInvestmentModule(address(0xa513E6E4b8f2a923D98304ec87F64353C4D5C853)); 
     }
 
     function setupMockTokens() public {
@@ -136,7 +157,7 @@ contract DeployScript is Script {
         
     }
 
-    function setupLendingPools(LendingPoolFactory factory, DIAOracleV2 oracle) 
+    function setupLendingPools(LendingPoolFactory factory, DIAOracleV2 oracle, IInvestmentModule investModule) 
         public 
         returns(
             address USDT_Pool,
@@ -146,16 +167,16 @@ contract DeployScript is Script {
             address lpMPX_pool 
         ) 
     {
-        USDT_Pool = setupUSDTLendingPool(factory, oracle);
-        XUSD_Pool = setupXUSDLendingPool(factory, oracle);
+        USDT_Pool = setupUSDTLendingPool(factory, oracle, investModule);
+        XUSD_Pool = setupXUSDLendingPool(factory, oracle, investModule);
         (
             lpXFI_Pool, 
             lpUSD_Pool, 
             lpMPX_pool 
-        ) = setupLPLendingPool(factory, oracle);
+        ) = setupLPLendingPool(factory, oracle, investModule);
     }
 
-    function setupUSDTLendingPool(LendingPoolFactory factory, DIAOracleV2 oracle) public returns(address USDT_Pool) {
+    function setupUSDTLendingPool(LendingPoolFactory factory, DIAOracleV2 oracle, IInvestmentModule investModule) public returns(address USDT_Pool) {
         InitialCollateralInfo[] memory collaterals = new InitialCollateralInfo[](6);
         collaterals[0] = InitialCollateralInfo({
             tokenAddress: xusd,
@@ -191,7 +212,8 @@ contract DeployScript is Script {
             principalToken: usdt,
             principalKey: "usdt/usd",
             oracle: oracle,
-            collaterals: collaterals
+            collaterals: collaterals,
+            investModule: investModule
         });
         
         FeeConfig memory _feeConfig = FeeConfig({
@@ -223,10 +245,11 @@ contract DeployScript is Script {
             rateConfig: _rateConfig
         });
 
-        USDT_Pool = factory.createLendingPool(initParam);
+        USDT_Pool = factory.createLendingPool();
+        ILendingPool(USDT_Pool).initialize(initParam);
     }
 
-    function setupXUSDLendingPool(LendingPoolFactory factory, DIAOracleV2 oracle) public returns(address xUSD_Pool) {
+    function setupXUSDLendingPool(LendingPoolFactory factory, DIAOracleV2 oracle, IInvestmentModule investModule) public returns(address xUSD_Pool) {
         InitialCollateralInfo[] memory collaterals = new InitialCollateralInfo[](6);
         collaterals[0] = InitialCollateralInfo({
             tokenAddress: usdt,
@@ -262,7 +285,8 @@ contract DeployScript is Script {
             principalToken: xusd,
             principalKey: "xusd/usd",
             oracle: oracle,
-            collaterals: collaterals
+            collaterals: collaterals,
+            investModule: investModule
         });
         
         FeeConfig memory _feeConfig = FeeConfig({
@@ -294,10 +318,11 @@ contract DeployScript is Script {
             rateConfig: _rateConfig
         });
 
-        xUSD_Pool = factory.createLendingPool(initParam);
+        xUSD_Pool = factory.createLendingPool();
+        ILendingPool(xUSD_Pool).initialize(initParam);
     }
 
-    function setupLPLendingPool(LendingPoolFactory factory, DIAOracleV2 oracle) public returns(address lpXFI_Pool, address lpUSD_Pool, address lpMPX_Pool) {
+    function setupLPLendingPool(LendingPoolFactory factory, DIAOracleV2 oracle, IInvestmentModule investModule) public returns(address lpXFI_Pool, address lpUSD_Pool, address lpMPX_Pool) {
         InitialCollateralInfo[] memory collaterals = new InitialCollateralInfo[](6);
         collaterals[0] = InitialCollateralInfo({
             tokenAddress: xusd,
@@ -333,21 +358,24 @@ contract DeployScript is Script {
             principalToken: lpxfi,
             principalKey: "lpXFI/usd",
             oracle: oracle,
-            collaterals: collaterals
+            collaterals: collaterals,
+            investModule: investModule
         });
 
         InitializeTokenConfig memory _tokenConfigUSD = InitializeTokenConfig({
             principalToken: lpusd,
             principalKey: "lpUSD/usd",
             oracle: oracle,
-            collaterals: collaterals
+            collaterals: collaterals,
+            investModule: investModule
         });
 
         InitializeTokenConfig memory _tokenConfigMPX = InitializeTokenConfig({
             principalToken: lpmpx,
             principalKey: "lpMPX/usd",
             oracle: oracle,
-            collaterals: collaterals
+            collaterals: collaterals,
+            investModule: investModule
         });
         
         FeeConfig memory _feeConfig = FeeConfig({
@@ -372,21 +400,25 @@ contract DeployScript is Script {
             reserveFactor: 0.1e18 
         });
 
-        lpXFI_Pool = factory.createLendingPool(InitializeParam({
+        lpXFI_Pool = factory.createLendingPool();
+
+        lpUSD_Pool = factory.createLendingPool();
+
+        lpMPX_Pool = factory.createLendingPool();
+
+        ILendingPool(lpXFI_Pool).initialize(InitializeParam({
             tokenConfig: _tokenConfigXFI,
             feeConfig: _feeConfig,
             riskConfig: _riskConfig,
             rateConfig: _rateConfig
         }));
-
-        lpUSD_Pool = factory.createLendingPool(InitializeParam({
+        ILendingPool(lpUSD_Pool).initialize(InitializeParam({
             tokenConfig: _tokenConfigUSD,
             feeConfig: _feeConfig,
             riskConfig: _riskConfig,
             rateConfig: _rateConfig
         }));
-
-        lpMPX_Pool = factory.createLendingPool(InitializeParam({
+        ILendingPool(lpMPX_Pool).initialize(InitializeParam({
             tokenConfig: _tokenConfigMPX,
             feeConfig: _feeConfig,
             riskConfig: _riskConfig,

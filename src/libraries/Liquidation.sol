@@ -3,7 +3,7 @@ pragma solidity ^0.8.18;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {FixedPointMathLib} from "@solady/utils/FixedPointMathLib.sol";
-import {LendingPoolStorage, State, DebtPosition, ReserveData} from "../LendingPoolStorage.sol";
+import {State, DebtPosition, ReserveData} from "../LendingPoolState.sol";
 import { InterestRateModel } from "./InterestRateModel.sol";
 
 import { TransferLib } from "./TransferLib.sol";

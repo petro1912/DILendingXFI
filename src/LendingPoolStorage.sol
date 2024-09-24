@@ -2,190 +2,17 @@
 pragma solidity ^0.8.18;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {FixedPointMathLib} from "@solady/utils/FixedPointMathLib.sol";
-import {InterestRateModel} from "./libraries/InterestRateModel.sol";
-import {AccountingLib} from './libraries/AccountingLib.sol';
-import {PriceLib} from './libraries/PriceLib.sol';
-import { DIAOracleV2 } from "./oracle/DIAOracleV2Multiupdate.sol";
-
-
-struct PoolInfo {
-    address poolAddress;
-    address principalToken;
-    // address[] collateralTokens;
-    uint256 totalDeposits;
-    uint256 totalBorrows;
-    uint256 totalEarnings;
-    uint256 totalCollaterals;
-    uint256 utilizationRate;
-    uint256 borrowAPR;
-    uint256 earnAPR;
-}
-
-struct CollateralData {
-    address token;
-    uint256 totalSupply;
-    uint256 oraclePrice;
-}
-
-struct CollateralsData {
-    CollateralData[] tokenData;
-    uint256 loanToValue;
-    uint256 liquidationThreshold;
-    uint256 liquidationBonus;
-}
-
-struct PositionCollateral {
-    address token;
-    uint256 amount;
-    uint256 value; 
-}
-struct UserCollateralData {
-    PositionCollateral[] collaterals;
-    uint256 totalValue;
-}
-
-struct UserCreditPositionData {
-    address poolAddress;
-    address tokenAddress;
-    uint256 liquidityAmount;
-    uint256 liquidityValue;
-    uint256 cashAmount;
-    uint256 cashValue;
-    uint256 earnedAmount;
-    uint256 earnedValue;
-}
-
-struct UserDebtPositionData {
-    address poolAddress;
-    address tokenAddress;
-    uint256 borrowAmount;
-    uint256 borrowValue;
-    uint256 collateralValue;
-    uint256 currentDebtAmount;
-    uint256 currentDebtValue;
-    uint256 liquidationPoint;
-    uint256 borrowCapacity;
-    uint256 availableToBorrowAmount;
-    uint256 availableToBorrowValue;
-}
-
-struct DebtPosition {
-    mapping(address token => uint256 amount) collateralAmount;
-    uint256 borrowAmount;
-    uint256 repaidAmount;
-    uint256 debtAmount; 
-    uint256 totalBorrow;
-}
-
-struct CreditPosition {
-    uint256 depositAmount;
-    uint256 withdrawAmount;
-    uint256 creditAmount;
-    uint256 totalDeposit;
-    uint256 earnedAmount;
-    uint256 earnedValue;
-}
-
-struct ReserveData {
-    uint256 totalDeposits; // Total Deposits 
-    uint256 totalWithdrawals; // Total Accumulated withdrawals
-    mapping (address token => uint256 collateralAmount) totalCollaterals;
-    uint256 totalBorrows; // Total Accumulated borrows
-    uint256 totalRepaid; // Total Accumulated repaid
-    uint256 totalCredit; 
-}
-
-struct RateData {
-    uint256 utilizationRate;
-    uint256 borrowRate;
-    uint256 liquidityRate;
-    uint256 debtIndex;
-    uint256 liquidityIndex;
-    uint256 lastUpdated;
-}
-
-struct TokenInfo {
-    bool whitelisted;
-    string collateralKey;
-}
-
-struct CollateralInfo {
-    IERC20 tokenAddress;
-    TokenInfo tokenInfo;
-}
-
-struct InitialCollateralInfo {
-    IERC20 tokenAddress;
-    string collateralKey;
-}
-
-struct TokenConfig {
-    IERC20 principalToken; // USDT
-    string principalKey;
-    IERC20[] collateralTokens;
-    mapping(address token => TokenInfo tokenInfo) collateralsInfo;
-    DIAOracleV2 oracle;         
-}
-
-struct InitializeTokenConfig {
-    IERC20 principalToken; // USDT
-    string principalKey;
-    DIAOracleV2 oracle;     
-    InitialCollateralInfo[] collaterals;    
-}
-
-struct FeeConfig {
-    uint256 protocolFeeRate; // Protocol fee rate on interest (e.g., 5%)
-    address protocolFeeRecipient; // Protocol fee recipient 
-}
-
-struct RateConfig {
-    uint256 baseRate; // Base rate (e.g., 2%)
-    uint256 rateSlope1; // Slope 1 for utilization below optimal rate (e.g., 4%)
-    uint256 rateSlope2; // Slope 2 for utilization above optimal rate (e.g., 20%)
-    uint256 optimalUtilizationRate; // Optimal utilization rate (e.g., 80%)
-    uint256 reserveFactor;
-}
-
-struct RiskConfig {
-    uint256 loanToValue; // loan to value (e.g., 75%)
-    uint256 liquidationThreshold; // Liquidation threshold (e.g., 80%)
-    uint256 minimumBorrowToken;
-    uint256 borrowTokenCap;    
-    uint256 healthFactorForClose; // user’s health factor:  0.95<hf<1, the loan is eligible for a liquidation of 50%. user’s health factor:  hf<=0.95, the loan is eligible for a liquidation of 100%.
-    uint256 liquidationBonus;    // Liquidation penalty (e.g., 5%)
-}
-
-struct PositionData {
-    mapping(address => DebtPosition) debtPositions;
-    mapping(address => CreditPosition) creditPositions;
-    uint256 totalCredit;
-    uint256 totalDebt;
-}
-
-struct InitializeParam {
-    InitializeTokenConfig tokenConfig;
-    FeeConfig feeConfig;
-    RiskConfig riskConfig;
-    RateConfig rateConfig;
-}
-
-struct State {
-    TokenConfig tokenConfig;
-    FeeConfig feeConfig;
-    RiskConfig riskConfig;
-    RateConfig rateConfig;
-    ReserveData reserveData;
-    RateData rateData;
-    PositionData positionData;
-}
+import {PositionInfo} from "./libraries/PositionInfo.sol";
+import {PoolStatistics} from "./libraries/PoolStatistics.sol";
+import {InvestmentLib} from "./libraries/InvestmentLib.sol";
+import {IRewardModule} from "./interfaces/IRewardModule.sol";
+import {IInvestmentModule} from "./interfaces/IInvestmentModule.sol";
+import {State, PoolInfo, CollateralsData, UserCollateralData, UserCreditPositionData, UserDebtPositionData} from "./LendingPoolState.sol";
 
 abstract contract LendingPoolStorage {
-    using FixedPointMathLib for uint256;
-    using AccountingLib for State;
-    using InterestRateModel for State;
-    using PriceLib for State;
+    using PositionInfo for State;
+    using PoolStatistics for State;
+    using InvestmentLib for State;
     
     State internal state;
 
@@ -207,6 +34,18 @@ abstract contract LendingPoolStorage {
         return addresses;
     }
 
+    // function getRewardModules(address token) public view returns (IRewardModule[] memory modules) {
+    //     modules = state.rewardConfig.rewardModules[token];
+    // }
+
+    function getRewardModule(address token) public view returns (IRewardModule module) {
+        module = state.rewardConfig.rewardModules[token];
+    }
+
+    function getInvestmentModule() public view returns (IInvestmentModule module) {
+        module = state.tokenConfig.investModule;
+    }
+
     function getPoolStatistics() 
         public 
         view
@@ -217,178 +56,50 @@ abstract contract LendingPoolStorage {
             uint256 totalEarnings
         ) 
     {
-        IERC20[] memory collateralTokens = state.tokenConfig.collateralTokens;
-        uint256 tokensCount = collateralTokens.length;
-
-        totalDeposits = state.getPrincipalValueInUSD(state.reserveData.totalDeposits);
-        totalBorrows = state.getPrincipalValueInUSD(state.reserveData.totalBorrows);
-        uint256 totalCredit = state.getPrincipalValueInUSD(
-                                state.getCashAmount(state.reserveData.totalCredit)
-                            );
-
-        if (totalCredit > totalDeposits) {
-            totalEarnings = totalCredit - totalDeposits;
-        }
-
-        for (uint i = 0; i < tokensCount; ) {
-            address collateralToken = address(collateralTokens[i]);
-            totalCollaterals += state.getCollateralValueInUSD(
-                collateralToken, 
-                state.reserveData.totalCollaterals[collateralToken]
-            );
-            unchecked {
-                ++i;
-            }
-        }
+        return state.getPoolStatistics();
     }
 
     function getPoolInfo() public view returns(PoolInfo memory info) {
-        (
-            uint256 totalDeposits, 
-            uint256 totalCollaterals, 
-            uint256 totalBorrows,
-            uint256 totalEarnings
-        ) = getPoolStatistics();
-
-        (
-            uint256 utilizationRate, 
-            uint256 liquidityRate, 
-            uint256 borrowRate 
-        ) = state.calcUpdatedRates();
-
-        info = PoolInfo({
-            poolAddress: address(this),
-            principalToken: getPrincipalToken(),
-            // collateralTokens: getCollateralTokens(),
-            totalDeposits: totalDeposits,
-            totalBorrows: totalBorrows,
-            totalCollaterals: totalCollaterals,
-            totalEarnings: totalEarnings, 
-            utilizationRate: utilizationRate,
-            borrowAPR: borrowRate,
-            earnAPR: liquidityRate
-        });
+        return state.getPoolInfo();
     }
 
     function getCollateralsData() public view returns(CollateralsData memory info) {
-
-        IERC20[] memory collateralTokens = state.tokenConfig.collateralTokens;
-        uint256 tokensCount = collateralTokens.length;
-        CollateralData[] memory _tokenData = new CollateralData[](tokensCount); 
-        for (uint256 i = 0; i < tokensCount; ) {
-            address _tokenAddress = address(collateralTokens[i]);
-            uint256 _totalSupply = state.reserveData.totalCollaterals[_tokenAddress];
-            uint256 _oraclePrice = state.collateralPriceInUSD(_tokenAddress);
-            _tokenData[i] = CollateralData({
-                token: _tokenAddress,
-                totalSupply: _totalSupply,
-                oraclePrice: _oraclePrice
-            });
-            
-            unchecked {
-                ++i;
-            }
-        }
-
-        info = CollateralsData({
-            tokenData: _tokenData,
-            loanToValue: state.riskConfig.loanToValue,
-            liquidationThreshold: state.riskConfig.liquidationThreshold,
-            liquidationBonus: state.riskConfig.liquidationBonus
-        });
+        return state.getCollateralsData();
     }
 
     function getUserCollateralData(address user) public view returns(UserCollateralData memory collateralData) {
-        DebtPosition storage position = state.positionData.debtPositions[user];
-        IERC20[] memory collateralTokens = state.tokenConfig.collateralTokens;
-        uint256 tokensCount = collateralTokens.length;
-        
-        uint256 totalValue;
-        PositionCollateral[] memory collaterals = new PositionCollateral[](tokensCount); 
-        for (uint i = 0; i < tokensCount; ) {
-            address tokenAddress = address(collateralTokens[i]);
-            uint256 collateralAmount = position.collateralAmount[tokenAddress];
-            uint256 collateralValue;
-            if (collateralAmount != 0) {
-                collateralValue = collateralAmount.mulDiv(state.collateralPriceInUSD(tokenAddress), 1e8);
-                totalValue += collateralValue;
-            }
-            
-            collaterals[i] = PositionCollateral({
-                token: tokenAddress,
-                amount: collateralAmount,
-                value: collateralValue
-            });
-
-            unchecked {
-                ++i;
-            }   
-        }
-        collateralData = UserCollateralData({
-            collaterals: collaterals,
-            totalValue: totalValue
-        });
+        return state.getUserCollateralData(user);
     } 
 
     function getLiquidityPositionData(address user) public view returns(UserCreditPositionData memory positionData) {
-        CreditPosition storage position = state.positionData.creditPositions[user];
-        
-        uint256 price = state.principalPriceInUSD();
-        uint256 liquidityAmount = position.depositAmount;
-        // if (liquidityAmount != 0) {
-            uint256 liquidityValue = position.depositAmount.mulDiv(price, 1e8);
-            uint256 cashAmount = state.getCashAmount(position.creditAmount);
-            uint256 cashValue = cashAmount.mulDivUp(price, 1e8);
-
-            uint256 earnedAmount = cashAmount > liquidityAmount? position.earnedAmount + cashAmount - liquidityAmount : position.earnedAmount;
-            uint256 earnedValue = cashValue > liquidityValue? position.earnedValue + cashValue - liquidityValue : position.earnedValue;
-
-            positionData = UserCreditPositionData({
-                poolAddress: address(this),
-                tokenAddress: address(state.tokenConfig.principalToken),
-                liquidityAmount: liquidityAmount,
-                liquidityValue: liquidityValue,
-                cashAmount: cashAmount,
-                cashValue: cashValue,
-                earnedAmount: earnedAmount,
-                earnedValue: earnedValue
-            });
-        // }
+        return state.getLiquidityPositionData(user);
     }
 
     function getDebtPositionData(address user) public view returns(UserDebtPositionData memory positionData) {
-        DebtPosition storage position = state.positionData.debtPositions[user];
-        uint256 principalPrice = state.principalPriceInUSD();
-        positionData.borrowAmount = position.borrowAmount;
-        positionData.borrowValue = position.borrowAmount.mulDiv(principalPrice, 1e8);
-        positionData.currentDebtAmount = state.getRepaidAmount(position.debtAmount);
-        positionData.currentDebtValue = state.getRepaidAmount(position.debtAmount).mulDivUp(principalPrice, 1e8);
-
-        IERC20[] memory collateralTokens = state.tokenConfig.collateralTokens;
-        uint256 tokensCount = collateralTokens.length;
-        uint256 collateralValue;
-        for (uint i = 0; i < tokensCount; ) {
-            address tokenAddress = address(collateralTokens[i]);
-            uint256 collateralAmount = position.collateralAmount[tokenAddress];
-            if (collateralAmount != 0)
-                collateralValue += collateralAmount.mulDiv(state.collateralPriceInUSD(tokenAddress), 1e8);
-                
-            unchecked {
-                ++i;
-            }
-        }
-
-        // if (collateralValue != 0) {
-            positionData.poolAddress = address(this);
-            positionData.tokenAddress = address(state.tokenConfig.principalToken);
-            positionData.collateralValue = collateralValue;
-            positionData.liquidationPoint = collateralValue.mulWad(state.riskConfig.liquidationThreshold);
-            positionData.borrowCapacity = collateralValue.mulWad(state.riskConfig.loanToValue);
-            if (positionData.borrowCapacity > positionData.currentDebtValue) {
-                positionData.availableToBorrowAmount = principalPrice == 0? 0 : (positionData.borrowCapacity - positionData.currentDebtValue).mulDiv(1e8, principalPrice);
-                positionData.availableToBorrowValue = positionData.borrowCapacity - positionData.currentDebtValue;
-            }
-            
-        // }
+        return state.getDebtPositionData(user);
     }
+
+    function getRewardIndex(address token) external view returns (uint256 rewardIndex) {
+        rewardIndex = state.getRewardIndex(token);
+    }
+
+    function getInvestReserveData(address token) public view returns (uint256 totalDeposits, uint256 totalInvested) {
+        return state.getInvestReserveData(token);
+    }    
+
+    function getLastRewardAPRUpdatedAt(address token) external view returns (uint256 lastUpdatedAt) {
+        return state.getLastRewardAPRUpdatedAt(token);
+    }
+    
+    function updateInvestReserveData(
+        bool isInvest, 
+        address token, 
+        uint256 investAmount, 
+        uint256 rewards, 
+        uint256 rewardIndex,
+        uint256 rewardAPR
+    ) public {
+        state.updateInvestReserveData(isInvest, token, investAmount, rewards, rewardIndex, rewardAPR);
+    }
+
 }

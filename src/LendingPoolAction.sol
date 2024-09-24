@@ -2,13 +2,17 @@
 pragma solidity ^0.8.18;
 
 import {InterestRateModel} from "./libraries/InterestRateModel.sol";
-import {LendingPoolStorage, State} from "./LendingPoolStorage.sol";
+import {LendingPoolStorage} from "./LendingPoolStorage.sol";
+import {State} from "./LendingPoolState.sol";
+import {Repay} from "./libraries/Repay.sol";
 import {Borrow} from "./libraries/Borrow.sol";
 import {Supply} from "./libraries/Supply.sol";
 import {Liquidation} from "./libraries/Liquidation.sol";
 
 contract LendingPoolAction is LendingPoolStorage {
+    
     using Borrow for State;
+    using Repay for State;
     using Supply for State;
     using Liquidation for State;
 
@@ -26,7 +30,6 @@ contract LendingPoolAction is LendingPoolStorage {
     }
 
     // Borrow Logic 
-
     function depositCollateral(address _collateralToken, uint256 _amount) external {
         state.depositCollateral(_collateralToken, _amount);
     }

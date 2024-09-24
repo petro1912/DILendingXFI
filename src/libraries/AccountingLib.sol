@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import { LendingPoolStorage, State, DebtPosition, ReserveData } from "../LendingPoolStorage.sol";
+import { State, DebtPosition, ReserveData } from "../LendingPoolState.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {FixedPointMathLib} from "@solady/utils/FixedPointMathLib.sol";
 import {PriceLib} from './PriceLib.sol';
-import {InterestRateModel} from '../libraries/InterestRateModel.sol';
+import {InterestRateModel} from './InterestRateModel.sol';
 
 library AccountingLib {
 
@@ -135,7 +135,7 @@ library AccountingLib {
 
     function _collateralValueInPrincipal(State storage state, DebtPosition storage position, address collateralToken) internal view returns(uint256 principalAmount) {
 
-        uint256 amount = position.collateralAmount[address(collateralToken)];    
+        uint256 amount = position.collaterals[address(collateralToken)].amount;    
         uint256 collateralPriceInPrincipal = state.collateralPriceInPrincipal(collateralToken);
         if (amount != 0) {
             principalAmount = amount.mulWad(collateralPriceInPrincipal);
@@ -156,7 +156,7 @@ library AccountingLib {
 
     function _collateralValueInUSD(State storage state, DebtPosition storage position, address collateralToken) internal view returns(uint256 usdValue) {
 
-        uint256 amount = position.collateralAmount[collateralToken];    
+        uint256 amount = position.collaterals[collateralToken].amount;    
         if (amount != 0) {
             uint256 collateralPrice = state.collateralPriceInUSD(collateralToken);
             usdValue = amount.mulDiv(collateralPrice, 1e8);
