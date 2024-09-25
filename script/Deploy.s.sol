@@ -13,8 +13,10 @@ import {
     RiskConfig,
     RateConfig
 } from "@src/LendingPoolState.sol";
+import { MockRewardModule } from "@src/mock/rewards/MockRewardModule.sol";
 
 import { IInvestmentModule } from "@src/interfaces/IInvestmentModule.sol";
+import { IRewardModule } from "@src/interfaces/IRewardModule.sol";
 import { InvestmentModule } from "@src/invest/InvestmentModule.sol";
 import {ILendingPool} from "@src/interfaces/ILendingPool.sol";
 import { WXFI } from "@src/mock/tokens/WXFI.sol";
@@ -48,7 +50,19 @@ contract DeployScript is Script {
     IERC20 usdc;
     IERC20 lpxfi;
     IERC20 lpusd;
-    IERC20 lpmpx;    
+    IERC20 lpmpx;   
+
+    IRewardModule wxfiRewardModule;
+    // IERC20 wethRewardModule;
+    IRewardModule xftRewardModule;
+    IRewardModule empxRewardModule;
+    IRewardModule exeRewardModule;
+    IRewardModule xusdRewardModule;
+    IRewardModule usdtRewardModule;
+    IRewardModule usdcRewardModule;
+    IRewardModule lpxfiRewardModule;
+    IRewardModule lpusdRewardModule;
+    IRewardModule lpmpxRewardModule;  
 
     address deployer;
     string chainName;
@@ -77,6 +91,7 @@ contract DeployScript is Script {
             address oracleAddress,
             address investAddress,
             address[] memory mockTokens,
+            address[] memory mockRewards,
             address[] memory pools,
             address deployerAddress
         ) 
@@ -112,38 +127,51 @@ contract DeployScript is Script {
         mockTokens[8] = address(lpxfi);
         mockTokens[9] = address(lpusd);
         mockTokens[10] = address(lpmpx);  
+
+        mockRewards = new address[](10);
+        mockRewards[0] = address(wxfiRewardModule);
+        mockRewards[1] = address(xftRewardModule);
+        mockRewards[2] = address(empxRewardModule);
+        mockRewards[3] = address(exeRewardModule);
+        mockRewards[4] = address(xusdRewardModule);
+        mockRewards[5] = address(usdtRewardModule);
+        mockRewards[6] = address(usdcRewardModule);
+        mockRewards[7] = address(lpxfiRewardModule);
+        mockRewards[8] = address(lpusdRewardModule);
+        mockRewards[9] = address(lpmpxRewardModule);
+
     }
 
     function setupMockOracle() public returns(DIAOracleV2 oracle) {
         if (!mockTokenDeployed)
             oracle = new DIAOracleV2(); 
         else
-            oracle = DIAOracleV2(address(0xa513E6E4b8f2a923D98304ec87F64353C4D5C853)); 
+            oracle = DIAOracleV2(address(0x7bc06c482DEAd17c0e297aFbC32f6e63d3846650)); 
     }
 
     function setupInvestmentModule() public returns(IInvestmentModule investModule) {
-        if (!mockTokenDeployed)
+        // if (!mockTokenDeployed)
             investModule = new InvestmentModule(); 
-        else
-            investModule = IInvestmentModule(address(0xa513E6E4b8f2a923D98304ec87F64353C4D5C853)); 
+        // else
+        //     investModule = IInvestmentModule(address(0xc351628EB244ec633d5f21fBD6621e1a683B1181)); 
     }
 
     function setupMockTokens() public {
         if (mockTokenDeployed) {
-            wxfi = IERC20(address(0x8A791620dd6260079BF849Dc5567aDC3F2FdC318));
-            weth = IERC20(address(0x610178dA211FEF7D417bC0e6FeD39F05609AD788));
-            xft = IERC20(address(0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e));
-            empx = IERC20(address(0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0));
-            exe = IERC20(address(0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82));
-            xusd = IERC20(address(0x9A676e781A523b5d0C0e43731313A708CB607508));
-            usdt = IERC20(address(0x0B306BF915C4d645ff596e518fAf3F9669b97016));
-            usdc = IERC20(address(0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1));
-            lpxfi = IERC20(address(0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE));
-            lpusd = IERC20(address(0x68B1D87F95878fE05B998F19b66F4baba5De1aed));
-            lpmpx = IERC20(address(0x3Aa5ebB10DC797CAC828524e59A333d0A371443c));
+            wxfi = IERC20(address(0xcbEAF3BDe82155F56486Fb5a1072cb8baAf547cc));
+            weth = IERC20(address(0x1429859428C0aBc9C2C47C8Ee9FBaf82cFA0F20f));
+            xft = IERC20(address(0xB0D4afd8879eD9F52b28595d31B441D079B2Ca07));
+            empx = IERC20(address(0x162A433068F51e18b7d13932F27e66a3f99E6890));
+            exe = IERC20(address(0x922D6956C99E12DFeB3224DEA977D0939758A1Fe));
+            xusd = IERC20(address(0x5081a39b8A5f0E35a8D959395a630b68B74Dd30f));
+            usdt = IERC20(address(0x1fA02b2d6A771842690194Cf62D91bdd92BfE28d));
+            usdc = IERC20(address(0xdbC43Ba45381e02825b14322cDdd15eC4B3164E6));
+            lpxfi = IERC20(address(0x04C89607413713Ec9775E14b954286519d836FEf));
+            lpusd = IERC20(address(0x4C4a2f8c81640e47606d3fd77B353E87Ba015584));
+            lpmpx = IERC20(address(0x21dF544947ba3E8b3c32561399E88B52Dc8b2823));
         } else {
             wxfi = new WXFI();
-            weth = new WETH();
+            weth = new WETH(deployer);
             xft = new XFT(deployer);
             empx = new eMPX(deployer);
             exe = new EXE(deployer);
@@ -154,7 +182,30 @@ contract DeployScript is Script {
             lpusd = new lpUSD(deployer);
             lpmpx = new lpMPX(deployer);    
         }
-        
+
+        if (mockTokenDeployed) {
+            wxfiRewardModule = IRewardModule(address(0x8dA47DD12384f3A0c711E0cCb8Ac60D50d0e8cC8));
+            xftRewardModule = IRewardModule(address(0x732cc7c39e80d553513174Dc6F3AD6a4A107957F));
+            empxRewardModule = IRewardModule(address(0x143E8C6D4114Ea49292D4183bB7df2382A58FC28));
+            exeRewardModule = IRewardModule(address(0xa9186cf932e4e05b4606d107361Ae7b6651AF1b7));
+            xusdRewardModule = IRewardModule(address(0x31a46feD168ECb9DE7d87E543Ba2e8DD101ad0a0));
+            usdtRewardModule = IRewardModule(address(0x49A60936D52A63d9069DD667B8c84E4274d0A0B6));
+            usdcRewardModule = IRewardModule(address(0xfDE447BFa4e774606a6b0c73268Bc515a12c09c7));
+            lpxfiRewardModule = IRewardModule(address(0x977E2F3aA628f7676d685A3AFe2df48c51C9949a));
+            lpusdRewardModule = IRewardModule(address(0x8647AC3a1270c746130418010A368449d1944A82));
+            lpmpxRewardModule = IRewardModule(address(0xa79E2BDa2F900A3856a5502FE5f06F13bC7Ac843));
+        } else {
+            wxfiRewardModule = new MockRewardModule(address(wxfi), address(weth), 3e16);
+            xftRewardModule = new MockRewardModule(address(xft), address(weth), 3e16);
+            empxRewardModule = new MockRewardModule(address(empx), address(weth), 3e16);
+            exeRewardModule = new MockRewardModule(address(exe), address(weth), 3e16);
+            xusdRewardModule = new MockRewardModule(address(xusd), address(weth), 3e16);
+            usdtRewardModule = new MockRewardModule(address(usdt), address(weth), 3e16);
+            usdcRewardModule = new MockRewardModule(address(usdc), address(weth), 3e16);
+            lpxfiRewardModule = new MockRewardModule(address(lpxfi), address(weth), 3e16);
+            lpusdRewardModule = new MockRewardModule(address(lpusd), address(weth), 3e16);
+            lpmpxRewardModule = new MockRewardModule(address(lpmpx), address(weth), 3e16);     
+        }            
     }
 
     function setupLendingPools(LendingPoolFactory factory, DIAOracleV2 oracle, IInvestmentModule investModule) 
@@ -177,7 +228,7 @@ contract DeployScript is Script {
     }
 
     function setupUSDTLendingPool(LendingPoolFactory factory, DIAOracleV2 oracle, IInvestmentModule investModule) public returns(address USDT_Pool) {
-        InitialCollateralInfo[] memory collaterals = new InitialCollateralInfo[](6);
+        InitialCollateralInfo[] memory collaterals = new InitialCollateralInfo[](5);
         collaterals[0] = InitialCollateralInfo({
             tokenAddress: xusd,
             collateralKey: "xusd/usd"
@@ -189,23 +240,18 @@ contract DeployScript is Script {
         });
 
         collaterals[2] = InitialCollateralInfo({
-            tokenAddress: wxfi,
-            collateralKey: "wxfi/usd"
-        });
-
-        collaterals[3] = InitialCollateralInfo({
             tokenAddress: xft,
             collateralKey: "xft/usd"
         });
+        
+        collaterals[3] = InitialCollateralInfo({
+            tokenAddress: lpusd,
+            collateralKey: "lpusd/usd"
+        });
 
         collaterals[4] = InitialCollateralInfo({
-            tokenAddress: weth,
-            collateralKey: "weth/usd"
-        });
-        
-        collaterals[5] = InitialCollateralInfo({
-            tokenAddress: exe,
-            collateralKey: "exe/usd"
+            tokenAddress: lpmpx,
+            collateralKey: "lpmpx/usd"
         });
         
         InitializeTokenConfig memory _tokenConfig = InitializeTokenConfig({
@@ -247,18 +293,25 @@ contract DeployScript is Script {
 
         USDT_Pool = factory.createLendingPool();
         ILendingPool(USDT_Pool).initialize(initParam);
+        ILendingPool(USDT_Pool).setTokenRewardModule(address(usdt), usdtRewardModule);
+        ILendingPool(USDT_Pool).setTokenRewardModule(address(xusd), xusdRewardModule);
+        ILendingPool(USDT_Pool).setTokenRewardModule(address(empx), empxRewardModule);
+        ILendingPool(USDT_Pool).setTokenRewardModule(address(xft), xftRewardModule);
+        ILendingPool(USDT_Pool).setTokenRewardModule(address(lpusd), lpusdRewardModule);
+        ILendingPool(USDT_Pool).setTokenRewardModule(address(lpmpx), lpmpxRewardModule);
+
     }
 
     function setupXUSDLendingPool(LendingPoolFactory factory, DIAOracleV2 oracle, IInvestmentModule investModule) public returns(address xUSD_Pool) {
-        InitialCollateralInfo[] memory collaterals = new InitialCollateralInfo[](6);
+        InitialCollateralInfo[] memory collaterals = new InitialCollateralInfo[](5);
         collaterals[0] = InitialCollateralInfo({
-            tokenAddress: usdt,
-            collateralKey: "usdt/usd"
+            tokenAddress: xusd,
+            collateralKey: "xusd/usd"
         });
 
         collaterals[1] = InitialCollateralInfo({
-            tokenAddress: empx,
-            collateralKey: "empx/usd"
+            tokenAddress: lpmpx,
+            collateralKey: "lpmpx/usd"
         });
 
         collaterals[2] = InitialCollateralInfo({
@@ -268,22 +321,17 @@ contract DeployScript is Script {
 
         collaterals[3] = InitialCollateralInfo({
             tokenAddress: xft,
-            collateralKey: "xft/usd"
-        });
-
-        collaterals[4] = InitialCollateralInfo({
-            tokenAddress: weth,
-            collateralKey: "weth/usd"
+            collateralKey: "lpxfi/usd"
         });
         
-        collaterals[5] = InitialCollateralInfo({
+        collaterals[4] = InitialCollateralInfo({
             tokenAddress: exe,
             collateralKey: "exe/usd"
         });
         
         InitializeTokenConfig memory _tokenConfig = InitializeTokenConfig({
-            principalToken: xusd,
-            principalKey: "xusd/usd",
+            principalToken: usdc,
+            principalKey: "usdc/usd",
             oracle: oracle,
             collaterals: collaterals,
             investModule: investModule
@@ -320,10 +368,16 @@ contract DeployScript is Script {
 
         xUSD_Pool = factory.createLendingPool();
         ILendingPool(xUSD_Pool).initialize(initParam);
+        ILendingPool(xUSD_Pool).setTokenRewardModule(address(usdc), usdcRewardModule);
+        ILendingPool(xUSD_Pool).setTokenRewardModule(address(lpmpx), lpmpxRewardModule);
+        ILendingPool(xUSD_Pool).setTokenRewardModule(address(wxfi), wxfiRewardModule);
+        ILendingPool(xUSD_Pool).setTokenRewardModule(address(xft), xftRewardModule);
+        ILendingPool(xUSD_Pool).setTokenRewardModule(address(exe), exeRewardModule);
+        ILendingPool(xUSD_Pool).setTokenRewardModule(address(xusd), xusdRewardModule);
     }
 
     function setupLPLendingPool(LendingPoolFactory factory, DIAOracleV2 oracle, IInvestmentModule investModule) public returns(address lpXFI_Pool, address lpUSD_Pool, address lpMPX_Pool) {
-        InitialCollateralInfo[] memory collaterals = new InitialCollateralInfo[](6);
+        InitialCollateralInfo[] memory collaterals = new InitialCollateralInfo[](4);
         collaterals[0] = InitialCollateralInfo({
             tokenAddress: xusd,
             collateralKey: "xusd/usd"
@@ -343,20 +397,10 @@ contract DeployScript is Script {
             tokenAddress: xft,
             collateralKey: "xft/usd"
         });
-
-        collaterals[4] = InitialCollateralInfo({
-            tokenAddress: weth,
-            collateralKey: "weth/usd"
-        });
-        
-        collaterals[5] = InitialCollateralInfo({
-            tokenAddress: exe,
-            collateralKey: "exe/usd"
-        });
         
         InitializeTokenConfig memory _tokenConfigXFI = InitializeTokenConfig({
             principalToken: lpxfi,
-            principalKey: "lpXFI/usd",
+            principalKey: "lpxfi/usd",
             oracle: oracle,
             collaterals: collaterals,
             investModule: investModule
@@ -364,7 +408,7 @@ contract DeployScript is Script {
 
         InitializeTokenConfig memory _tokenConfigUSD = InitializeTokenConfig({
             principalToken: lpusd,
-            principalKey: "lpUSD/usd",
+            principalKey: "lpusd/usd",
             oracle: oracle,
             collaterals: collaterals,
             investModule: investModule
@@ -372,7 +416,7 @@ contract DeployScript is Script {
 
         InitializeTokenConfig memory _tokenConfigMPX = InitializeTokenConfig({
             principalToken: lpmpx,
-            principalKey: "lpMPX/usd",
+            principalKey: "lpmpx/usd",
             oracle: oracle,
             collaterals: collaterals,
             investModule: investModule

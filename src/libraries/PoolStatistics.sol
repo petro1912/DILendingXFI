@@ -26,11 +26,9 @@ library PoolStatistics {
         IERC20[] memory collateralTokens = state.tokenConfig.collateralTokens;
         uint256 tokensCount = collateralTokens.length;
 
-        totalDeposits = state.getPrincipalValueInUSD(state.reserveData.totalDeposits);
-        totalBorrows = state.getPrincipalValueInUSD(state.reserveData.totalBorrows);
-        uint256 totalCredit = state.getPrincipalValueInUSD(
-                                state.getCashAmount(state.reserveData.totalCredit)
-                            );
+        totalDeposits = state.reserveData.totalDeposits;
+        totalBorrows = state.reserveData.totalBorrows;
+        uint256 totalCredit = state.getCashAmount(state.reserveData.totalCredit);
 
         if (totalCredit > totalDeposits) {
             totalEarnings = totalCredit - totalDeposits;

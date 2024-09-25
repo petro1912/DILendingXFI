@@ -31,6 +31,7 @@ library PositionInfo {
         for (uint i = 0; i < tokensCount; ) {
             address tokenAddress = address(collateralTokens[i]);
             uint256 collateralAmount = position.collaterals[tokenAddress].amount;
+            uint256 accruedRewards = position.collaterals[tokenAddress].accruedRewards;
             uint256 collateralValue;
             if (collateralAmount != 0) {
                 collateralValue = collateralAmount.mulDiv(state.collateralPriceInUSD(tokenAddress), 1e8);
@@ -40,6 +41,7 @@ library PositionInfo {
             collaterals[i] = PositionCollateral({
                 token: tokenAddress,
                 amount: collateralAmount,
+                rewards: accruedRewards,
                 value: collateralValue
             });
 
@@ -90,12 +92,14 @@ library PositionInfo {
         IERC20[] memory collateralTokens = state.tokenConfig.collateralTokens;
         uint256 tokensCount = collateralTokens.length;
         uint256 collateralValue;
+        uint256 rewards;
         for (uint i = 0; i < tokensCount; ) {
             address tokenAddress = address(collateralTokens[i]);
             uint256 collateralAmount = position.collaterals[tokenAddress].amount;
             if (collateralAmount != 0)
                 collateralValue += collateralAmount.mulDiv(state.collateralPriceInUSD(tokenAddress), 1e8);
                 
+            rewards += position.collaterals[tokenAddress].accruedRewards;
             unchecked {
                 ++i;
             }
@@ -107,6 +111,7 @@ library PositionInfo {
             positionData.collateralValue = collateralValue;
             positionData.liquidationPoint = collateralValue.mulWad(state.riskConfig.liquidationThreshold);
             positionData.borrowCapacity = collateralValue.mulWad(state.riskConfig.loanToValue);
+            positionData.rewards = rewards;
             if (positionData.borrowCapacity > positionData.currentDebtValue) {
                 positionData.availableToBorrowAmount = principalPrice == 0? 0 : (positionData.borrowCapacity - positionData.currentDebtValue).mulDiv(1e8, principalPrice);
                 positionData.availableToBorrowValue = positionData.borrowCapacity - positionData.currentDebtValue;

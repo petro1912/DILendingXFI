@@ -79,11 +79,11 @@ abstract contract LendingPoolStorage {
         return state.getDebtPositionData(user);
     }
 
-    function getRewardIndex(address token) external view returns (uint256 rewardIndex) {
-        rewardIndex = state.getRewardIndex(token);
-    }
+    // function getRewardIndex(address token) external view returns (uint256 rewardIndex) {
+    //     rewardIndex = state.getRewardIndex(token);
+    // }
 
-    function getInvestReserveData(address token) public view returns (uint256 totalDeposits, uint256 totalInvested) {
+    function getInvestReserveData(address token) public view returns (uint256 totalDeposits, uint256 totalInvested, uint256 lastRewardedAt) {
         return state.getInvestReserveData(token);
     }    
 
@@ -96,10 +96,9 @@ abstract contract LendingPoolStorage {
         address token, 
         uint256 investAmount, 
         uint256 rewards, 
-        uint256 rewardIndex,
         uint256 rewardAPR
     ) public {
-        state.updateInvestReserveData(isInvest, token, investAmount, rewards, rewardIndex, rewardAPR);
+        state.updateInvestReserveData(isInvest, token, investAmount, rewards, rewardAPR);
     }
 
 }

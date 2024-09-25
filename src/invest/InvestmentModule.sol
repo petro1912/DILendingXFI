@@ -37,24 +37,21 @@ contract InvestmentModule is IInvestmentModule {
     
 
     function invest(address lendingPool, address investToken, uint256 investAmount) onlyLendingModule(lendingPool) public override returns(uint256) {
-        (uint256 rewardIndex, uint256 lastAPR) = calculateUpdatedIndex(lendingPool, investToken);
+        uint256 lastAPR = getRewardModule(lendingPool, investToken).getCurrentAPR();
 
         // transfer token from lending pool and approve reward protocol
         IRewardModule rewardModule = getRewardModule(lendingPool, investToken);
         IERC20(investToken).safeTransferFrom(lendingPool, address(this), investAmount);
         IERC20(investToken).approve(address(rewardModule), investAmount);
         uint256 rewards = rewardModule.deposit(investAmount);
-        ILendingPool(lendingPool).updateInvestReserveData(true, investToken, investAmount, rewards, rewardIndex, lastAPR);
+        ILendingPool(lendingPool).updateInvestReserveData(true, investToken, investAmount, rewards, lastAPR);
 
-        return rewardIndex;
+        return lastAPR;
     }
 
     function withdraw(address lendingPool, address investToken, uint256 withdrawAmount) onlyLendingModule(lendingPool) public override returns(uint256) {
-         (uint256 rewardIndex, uint256 lastAPR) = calculateUpdatedIndex(lendingPool, investToken);
-        if (totalInvest < withdrawAmount)
-            revert NotEnoughWithdraw();
+        uint256 lastAPR = getRewardModule(lendingPool, investToken).getCurrentAPR();
         
-        totalInvest -= withdrawAmount;
         IRewardModule rewardModule = getRewardModule(lendingPool, investToken);
         uint256 rewards = rewardModule.withdraw(withdrawAmount);
         
@@ -63,9 +60,9 @@ contract InvestmentModule is IInvestmentModule {
         IERC20(investToken).safeTransfer(lendingPool, withdrawAmount);
         IERC20(rewardToken).safeTransfer(lendingPool, rewards);
 
-        ILendingPool(lendingPool).updateInvestReserveData(false, investToken, withdrawAmount, rewards, rewardIndex, lastAPR);
+        ILendingPool(lendingPool).updateInvestReserveData(false, investToken, withdrawAmount, rewards, lastAPR);
 
-        return rewardIndex;
+        return lastAPR;
     }
 
     function claim(address lendingPool, address investToken) onlyLendingModule(lendingPool) public override returns(uint256 rewards) {
@@ -77,15 +74,15 @@ contract InvestmentModule is IInvestmentModule {
         rewardModule = ILendingPool(lendingPool).getRewardModule(investToken);
     }
     
-    function calculateUpdatedIndex(address lendingPool, address investToken) internal view returns(uint256 rewardIndex, uint256 lastAPR) {
-        uint256 _updatedAt = ILendingPool(lendingPool).getLastRewardAPRUpdatedAt(investToken);
-        if (block.timestamp == _updatedAt)
-            return (0, 0);
+    // function calculateUpdatedIndex(address lendingPool, address investToken) internal view returns(uint256 rewardIndex, uint256 lastAPR) {
+    //     uint256 _updatedAt = ILendingPool(lendingPool).getLastRewardAPRUpdatedAt(investToken);
+    //     if (block.timestamp == _updatedAt)
+    //         return (0, 0);
 
-        uint256 timeElapsed = block.timestamp - _updatedAt;
-        rewardIndex = rewardIndex * (WAD + lastAPR * timeElapsed / YEAR);
+    //     uint256 timeElapsed = block.timestamp - _updatedAt;
+    //     rewardIndex = rewardIndex * (WAD + lastAPR * timeElapsed / YEAR);
 
-        lastAPR = getRewardModule(lendingPool, investToken).getCurrentAPR();
-    }
+    //     lastAPR = getRewardModule(lendingPool, investToken).getCurrentAPR();
+    // }
 
 }

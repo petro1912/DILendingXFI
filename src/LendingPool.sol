@@ -92,7 +92,7 @@ contract LendingPool is
     // }
 
     function setTokenRewardModule(address token, IRewardModule module) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        InitializeAction.setTokenRewardModules(state, token, module);
+        InitializeAction.setTokenRewardModule(state, token, module);
     }  
 
 }

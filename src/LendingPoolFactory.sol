@@ -40,4 +40,26 @@ contract LendingPoolFactory is Ownable {
 
         return pools;
     }
+
+    function getUserCreditPositions(address user) public view returns (UserCreditPositionData[] memory creditPositions) {
+        uint256 poolsCount = poolAddresses.length;
+        creditPositions = new UserCreditPositionData[](poolsCount);
+        for (uint i = 0; i < poolsCount; ) {
+            creditPositions[i] = ILendingPool(poolAddresses[i]).getLiquidityPositionData(user);
+            unchecked {
+                ++i;
+            }
+        }    
+    }
+
+    function getUserDebtPositions(address user) public view returns (UserDebtPositionData[] memory debtPositions) {
+        uint256 poolsCount = poolAddresses.length;
+        debtPositions = new UserDebtPositionData[](poolsCount);
+        for (uint i = 0; i < poolsCount; ) {
+            debtPositions[i] = ILendingPool(poolAddresses[i]).getDebtPositionData(user);
+            unchecked {
+                ++i;
+            }
+        }    
+    }
 }

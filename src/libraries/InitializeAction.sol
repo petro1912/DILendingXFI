@@ -138,13 +138,13 @@ library InitializeAction {
     //     state.rewardConfig.rewardModules[token] = modules;        
     // }
 
-    function setTokenRewardModules(
+    function setTokenRewardModule(
         State storage state,
         address token,
         IRewardModule module
     ) external {
         require(token == address(state.tokenConfig.principalToken) || state.tokenConfig.collateralsInfo[token].whitelisted, "InvalidToken");
-        require(address(module) == address(0), "WrongRewardConfig");
+        require(address(module) != address(0), "WrongRewardConfig");
         state.rewardConfig.rewardModules[token] = module;        
     }
 

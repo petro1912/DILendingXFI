@@ -16,20 +16,22 @@ interface ILendingPool {
     
     function initialize(InitializeParam memory param) external;
 
+    function setTokenRewardModule(address token, IRewardModule module) external;
+
     function getPoolInfo() external view returns (PoolInfo memory);
 
     function getLastRewardAPRUpdatedAt(address investToken) external view returns (uint256 lastUpdatedAt);
 
-    function getRewardIndex(address investToken) external view returns(uint256 rewardIndex);
-
+    // function getRewardIndex(address investToken) external view returns(uint256 rewardIndex);
     // function getRewardModules(address token) external view returns (IRewardModule[] memory);
+
     function getRewardModule(address token) external view returns (IRewardModule);
 
     function getInvestmentModule() external view returns (IInvestmentModule);
 
     function getInvestReserveData(address token) external view returns (uint256 totalDeposits, uint256 totalInvested, uint256 lastRewardedAt);
 
-    function updateInvestReserveData(bool isInvest, address token, uint256 investAmount, uint256 rewards, uint256 rewardIndex, uint256 rewardAPR) external;
+    function updateInvestReserveData(bool isInvest, address token, uint256 investAmount, uint256 rewards, uint256 rewardAPR) external;
     
     function getLiquidityPositionData(address) external view returns (UserCreditPositionData memory);
 

@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ILendingPool} from '../interfaces/ILendingPool.sol';
 import {IInvestmentModule} from '../interfaces/IInvestmentModule.sol';
 
 library ValveLib {
-    uint256 constant emergencyRate = 98_000;
-    uint256 constant safeRate = 95_000; // buffer rate is 5%
+    uint256 constant emergencyRate = 95_000;
+    uint256 constant safeRate = 90_000; // buffer rate is 5%
     uint256 constant unitRate = 100_000;
 
-    uint256 constant determinePrincipal = 3600; // one hour    
+    uint256 constant determinePrincipal = 10; // one hour    
     uint256 constant minimumInvestToken = 1e18;
 
     function determineInvestOrWithdraw(address _token) 
@@ -25,15 +26,19 @@ library ValveLib {
             uint256 totalInvest,
             uint256 lastRewardedAt
         ) = ILendingPool(address(this)).getInvestReserveData(_token);
-        uint256 totalUtilizedRate = unitRate * totalInvest / totalDeposit;    
+
+        if (totalDeposit == 0)
+            return (false, totalInvest);
+
+        uint256 totalUtilizedRate = unitRate * totalInvest / totalDeposit;
         if (totalUtilizedRate >= emergencyRate) {
             isInvest = false;
             amount = (totalUtilizedRate - safeRate) * totalDeposit / unitRate;
-        } else if (lastRewardedAt > block.timestamp + determinePrincipal) {
+        } else if (block.timestamp > lastRewardedAt + determinePrincipal) {
             isInvest = totalUtilizedRate < safeRate;
             amount = isInvest?
                         (safeRate - totalUtilizedRate) * totalDeposit / unitRate :
-                        (totalUtilizedRate - totalUtilizedRate) * totalDeposit / unitRate; 
+                        (totalUtilizedRate - safeRate) * totalDeposit / unitRate; 
 
             if (amount < minimumInvestToken)
                 amount = 0;
@@ -62,7 +67,7 @@ library ValveLib {
     //     return maxIndex;
     // }
 
-    function executeInvestOrWithdraw(address _token) external returns (uint256 rewardIndex) {
+    function executeInvestOrWithdraw(address _token) external returns (uint256 rewardAPR) {
         (
             bool isInvest, 
             uint256 amount
@@ -71,12 +76,15 @@ library ValveLib {
         if (amount != 0) {
             IInvestmentModule investModule = ILendingPool(address(this)).getInvestmentModule();
             if (isInvest) {
-                rewardIndex = investModule.invest(address(this), _token, amount);
-            } else {
-                rewardIndex = investModule.withdraw(address(this), _token, amount);
+                IERC20(_token).approve(address(investModule), amount);
+                rewardAPR = investModule.invest(address(this), _token, amount);
+            } 
+            else {
+                // require(amount >= 450000e18, "this is error");
+                rewardAPR = investModule.withdraw(address(this), _token, amount);
             }
         } else {
-            rewardIndex = ILendingPool(address(this)).getRewardIndex(_token);
+            rewardAPR = ILendingPool(address(this)).getRewardModule(_token).getCurrentAPR();
         }
 
     }    

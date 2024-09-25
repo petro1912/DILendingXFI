@@ -34,6 +34,7 @@ struct CollateralsData {
 struct PositionCollateral {
     address token;
     uint256 amount;
+    uint256 rewards;
     uint256 value; 
 }
 struct UserCollateralData {
@@ -64,13 +65,16 @@ struct UserDebtPositionData {
     uint256 borrowCapacity;
     uint256 availableToBorrowAmount;
     uint256 availableToBorrowValue;
+    uint256 rewards;
 }
 
 struct DebtPositionCollateral {
     uint256 amount;
     uint256 share;
-    uint256 rewardIndex;
+    // uint256 rewardIndex;
     uint256 accruedRewards;
+    uint256 lastAPR;
+    uint256 lastRewardedAt;
 }
 
 struct DebtPosition {
@@ -94,7 +98,7 @@ struct InvestReserveData {
     uint256 totalDeposits;
     uint256 totalInvested;
     uint256 totalRewards;
-    uint256 rewardIndex;
+    // uint256 rewardIndex;
     uint256 rewardAPR;
     uint256 lastAPRUpdatedAt;
     uint256 shares;
@@ -110,7 +114,7 @@ struct ReserveData {
     uint256 totalRepaid; // Total Accumulated repaid
     uint256 totalInvested;
     uint256 totalRewards;
-    uint256 rewardIndex;
+    // uint256 rewardIndex;
     uint256 rewardAPR;
     uint256 lastAPRUpdatedAt;
     uint256 totalRewardShares;
